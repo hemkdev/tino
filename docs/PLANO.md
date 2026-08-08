@@ -106,6 +106,18 @@ silenciosamente:
    zero.
 6. Nada de token ou dado financeiro em log.
 
+## Pendências
+
+**Hospedagem.** O bot roda na máquina pessoal, então só responde enquanto ela
+está ligada — e o link de instalação é público. Candidato natural: uma VPS com
+disco persistente (Oracle Cloud Free Tier atende sem custo), rodando o jar
+direto. Duas restrições que eliminam boa parte das plataformas: o bot mantém
+WebSocket permanente com o gateway, logo não é serverless; e o SQLite é um
+arquivo em disco, logo filesystem efêmero apaga o histórico a cada deploy.
+
+Enquanto isso não acontece, os dados de quem instalar ficam no `financebot.db`
+local.
+
 ## Fora de escopo
 
 Orçamento com alerta, filtro por categoria em `/lancamentos`, evolução de uma
