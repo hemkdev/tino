@@ -1,8 +1,9 @@
 # Especificação — Bot de Controle Financeiro para Discord
 
-- **Versão:** 0.1.0
+- **Versão:** 0.2.0
 - **Data:** 2026-08-07
-- **Status:** rascunho aprovado para a Fase 0
+- **Status:** aprovado para a Fase 0
+- **Documento complementar:** [`ARQUITETURA.md`](ARQUITETURA.md)
 
 Este documento é a fonte de verdade do comportamento do sistema. No fluxo
 Spec-Driven Development, nenhuma linha de produção é escrita sem uma regra
@@ -24,6 +25,14 @@ prático de arquitetura de software em Java.
 ### Fora de escopo (v1)
 
 - Compras parceladas e regime de competência (ver seção 9)
+- **Resumo automático agendado por mensagem direta** — decisão explícita, não
+  omissão. O bot é acionado pelo usuário; não envia nada por iniciativa própria.
+  A consequência aceita é que o hábito de revisar os gastos depende do usuário
+  lembrar de chamar `/resumo`. A consequência positiva é que o sistema não
+  depende de processo rodando continuamente para funcionar corretamente — só
+  para estar disponível quando chamado, o que amplia as opções de hospedagem.
+- Registro por texto livre em mensagem comum — exigiria a privileged intent de
+  conteúdo de mensagem, que os slash commands dispensam
 - Integração com bancos, Open Finance ou importação de extrato
 - Múltiplas moedas — o sistema opera exclusivamente em BRL
 - Investimentos, patrimônio, metas de longo prazo
@@ -33,17 +42,14 @@ prático de arquitetura de software em Java.
 
 ## 2. Decisões de arquitetura
 
-| # | Decisão | Justificativa |
-|---|---|---|
-| AD-01 | Arquitetura hexagonal (ports & adapters) | Mantém domínio e casos de uso testáveis sem subir Discord nem banco — pré-requisito para um ciclo TDD rápido |
-| AD-02 | JDA como biblioteca de Discord | Modelo síncrono/imperativo; a alternativa (Discord4J) impõe Project Reactor, cuja complexidade não contribui para o objetivo de aprendizado |
-| AD-03 | Slash commands, não parsing de texto livre | Validação de tipo e autocomplete nativos do Discord; respostas ephemeral; menos código de parsing |
-| AD-04 | SQLite com JDBC puro | Zero infraestrutura externa e SQL explícito — a camada de persistência fica visível em vez de escondida por um ORM |
-| AD-05 | Migrações versionadas com Flyway | Schema evolui de forma reproduzível e auditável |
-| AD-06 | Multiusuário desde o início | Retrofitar `usuario_id` em schema, repositórios e testes depois é caro; adicionar agora é quase de graça |
-| AD-07 | Relatórios como embeds textuais | Sem dependência gráfica; saída verificável por asserção de string |
-| AD-08 | Dinheiro como inteiro de centavos (`long`) na persistência, `BigDecimal` no domínio | Elimina erro de ponto flutuante e ambiguidade de arredondamento |
-| AD-09 | Java 25 (LTS), build com Maven Wrapper | Build reprodutível, sem depender do que está instalado na máquina |
+As decisões técnicas (AD-01 a AD-15), a estrutura de pacotes, o esboço de schema,
+a estratégia de teste e o empacotamento estão em
+[`ARQUITETURA.md`](ARQUITETURA.md). Este documento trata apenas do comportamento
+observável do sistema.
+
+Em resumo: arquitetura hexagonal, JDA, SQLite com JDBC puro e Flyway,
+multiusuário desde o início, relatórios como embeds textuais, Java 25 e
+empacotamento em contêiner.
 
 ---
 
@@ -117,6 +123,15 @@ formatação pt-BR. Imutável.
 | RF-17 | Definir teto mensal por categoria |
 | RF-18 | Avisar, no ato do registro, quando o gasto ultrapassa um percentual do teto |
 
+### Interatividade
+
+| ID | Requisito |
+|---|---|
+| RF-21 | Paginar `/lancamentos` com botões «Anterior» e «Próximo» |
+| RF-22 | Exigir confirmação por botão antes de remover um lançamento |
+| RF-23 | Oferecer botão «Desfazer» no próprio embed de confirmação do registro |
+| RF-24 | Editar lançamento por modal com os campos atuais preenchidos |
+
 ### Suporte
 
 | ID | Requisito |
@@ -175,7 +190,14 @@ Cada regra abaixo é candidata direta a caso de teste.
 
 - **RN-14** — Descrição tem no máximo 200 caracteres.
 - **RN-15** — `/desfazer` remove o último lançamento criado pelo usuário nos últimos 10 minutos. Sem lançamento elegível, retorna mensagem informativa, não erro.
-- **RN-16** — Remoção é definitiva (*hard delete*); a confirmação exibe o que foi removido para permitir reinserção manual.
+- **RN-16** — Remoção é definitiva (*hard delete*) e exige confirmação por botão. A mensagem final exibe o que foi removido, permitindo reinserção manual.
+
+### Componentes interativos
+
+- **RN-23** — Botões e modais só respondem a quem originou a interação. Interação de outro usuário é rejeitada com mensagem *ephemeral*.
+- **RN-24** — O token de interação do Discord expira em 15 minutos. Passado esse prazo, o clique em um botão retorna orientação para repetir o comando, nunca uma falha silenciosa.
+- **RN-25** — Confirmação de remoção não respondida expira sem remover nada. O default de uma confirmação abandonada é sempre não agir.
+- **RN-26** — O modal de edição chega preenchido com os valores atuais do lançamento; campo deixado em branco significa remover o valor, e campo não alterado significa manter.
 
 ### Relatórios
 
@@ -216,19 +238,21 @@ preenchido por autocomplete com os lançamentos recentes — digitar identificad
 
 ## 8. Fases de entrega
 
-**Fase 0 — Fundação.** Repositório, build Maven, esqueleto de pacotes,
-teste ArchUnit da regra de dependência, JaCoCo com limiar, bot conecta e responde
-`/ping`. Critério de pronto: `./mvnw verify` passa e o `/ping` responde no
-Discord.
+**Fase 0 — Fundação.** Repositório, build Maven, esqueleto de pacotes, teste
+ArchUnit da regra de dependência, JaCoCo com limiar, `Dockerfile` e
+`docker-compose`, CI no GitHub Actions, bot conecta e responde `/ping`.
+Critério de pronto: `./mvnw verify` passa, a imagem sobe via compose e o `/ping`
+responde no Discord.
 
-**Fase 1 — Núcleo.** `Dinheiro`, `Periodo`, `Categoria`, `Lancamento`;
-casos de uso de registrar gasto e receita, listar, remover e desfazer;
-persistência SQLite com Flyway; `/resumo mes`. Critério de pronto: registrar um
-gasto e vê-lo no resumo mensal, ponta a ponta.
+**Fase 1 — Núcleo.** `Dinheiro`, `Periodo`, `Categoria`, `Lancamento`; casos de
+uso de registrar gasto e receita, listar, remover e desfazer; persistência SQLite
+com Flyway; `/resumo mes`. Critério de pronto: registrar um gasto e vê-lo no
+resumo mensal, ponta a ponta.
 
-**Fase 2 — Relatórios.** Resumo semanal e anual, breakdown por categoria,
-comparativo com período anterior, top N, edição de lançamento, CRUD de
-categorias.
+**Fase 2 — Relatórios e interatividade.** Resumo semanal e anual, breakdown por
+categoria, comparativo com período anterior, top N, CRUD de categorias, e os
+componentes interativos (RF-21 a RF-24): paginação, confirmação de remoção, botão
+de desfazer e modal de edição.
 
 **Fase 3 — Orçamento.** Teto mensal por categoria e alerta de estouro no ato do
 registro.

@@ -9,8 +9,12 @@ mensais e anuais com breakdown por categoria.
 
 Fase 0 — fundação. Ainda não há código de produção.
 
-A especificação completa (requisitos, regras de negócio, arquitetura e fases de
-entrega) está em [`docs/ESPECIFICACAO.md`](docs/ESPECIFICACAO.md).
+Documentação:
+
+- [`docs/ESPECIFICACAO.md`](docs/ESPECIFICACAO.md) — requisitos, regras de
+  negócio, contrato de comandos e fases de entrega
+- [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md) — decisões técnicas, estrutura de
+  pacotes, schema, estratégia de teste e deploy
 
 ## Stack
 
