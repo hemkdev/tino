@@ -670,6 +670,9 @@ final class Financas {
             return hoje;
         }
         String limpo = texto.trim();
+        if (limpo.matches("\\d{1,2}")) {
+            limpo = limpo + "/" + hoje.getMonthValue();   // só o dia: mês corrente
+        }
         LocalDate data;
         try {
             data = limpo.contains("/")

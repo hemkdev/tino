@@ -513,6 +513,12 @@ class FinancasTest {
     }
 
     @Test
+    void diaSoltoUsaOMesCorrente() {
+        assertEquals(LocalDate.of(2026, 8, 5), Financas.parseData("5", HOJE));
+        assertEquals(LocalDate.of(2026, 8, 5), Financas.parseData("05", HOJE));
+    }
+
+    @Test
     void diaBarraMesFuturoCaiNoAnoAnterior() {
         assertEquals(LocalDate.of(2025, 12, 25), Financas.parseData("25/12", HOJE));
     }
