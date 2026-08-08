@@ -8,14 +8,26 @@ outro.
 
 | Comando | O que faz |
 |---|---|
-| `/gasto <valor> <categoria> [descricao]` | Registra despesa |
-| `/ganho <valor> <categoria> [descricao]` | Registra receita |
-| `/resumo [periodo]` | Total por categoria, saldo e variação sobre o período anterior. Período: `mes` (default), `semana`, `ano` |
-| `/categoria` | Lista categorias; `criar <nome> [pai]` cria própria ou subcategoria |
+| `/gasto <valor> [categoria] [descricao] [data]` | Registra despesa. Sem categoria, vai para Outros |
+| `/ganho <valor> [categoria] [descricao] [data]` | Registra receita |
+| `/lancar <texto>` | Vários de uma vez: `50 mercado, 30 uber, +3000 salário` |
+| `/resumo [periodo]` | Por categoria, saldo, variação sobre o período anterior e projeção do mês |
+| `/lancamentos [periodo]` | Lista paginada com os ids |
+| `/exportar [periodo]` | Anexa um CSV |
 | `/remover <id>` | Apaga um lançamento |
+| `/categoria listar\|criar\|renomear\|excluir` | Gerencia categorias |
+| `/fixo listar\|adicionar\|remover\|lancar` | Aluguel e assinaturas, lançados de uma vez |
+| `/ajuda` | Exemplos de uso |
 
-Categoria vem por autocomplete. Respostas são *ephemeral* — o Discord guarda tudo
-que trafega, e num canal de guild qualquer membro leria seus gastos.
+Na conversa privada, texto solto também vira lançamento: `50 mercado` sem barra
+nenhuma. Só entra o que começa com número — conversa comum é ignorada.
+
+Cada registro traz botões de **Desfazer** e **Editar**. O contexto viaja no id do
+botão, então eles continuam funcionando depois de reiniciar o bot, e clique de
+terceiro é recusado.
+
+Categoria vem por autocomplete. Em servidor as respostas são *ephemeral*; em DM
+ficam no histórico, já que a conversa é privada de qualquer forma.
 
 ## Banco
 
@@ -58,9 +70,13 @@ schema couber nisso.
 ```
 Bot.java          main, JDA, registro e roteamento de comandos
 Financas.java     queries e cálculos; recebe uma Connection
+Visual.java       embeds, botões, modal e CSV
+Entrada.java      interpreta "50 mercado, 30 uber"
 Dinheiro.java     converte "1.234,56" ↔ centavos, formata em BRL
 
 FinancasTest.java   contra jdbc:sqlite::memory:
+VisualTest.java
+EntradaTest.java
 DinheiroTest.java
 ```
 
@@ -92,8 +108,8 @@ silenciosamente:
 
 ## Fora de escopo
 
-Orçamento com alerta, exportação CSV, parcelamento, recorrência, edição de
-lançamento (remover e registrar de novo resolve), desfazer, botões de paginação,
-modal de edição, gráficos em imagem, resumo automático agendado, Docker e CI.
+Orçamento com alerta, filtro por categoria em `/lancamentos`, evolução de uma
+categoria mês a mês, parcelamento, gráficos em imagem, resumo automático
+agendado, Docker e CI.
 
 Cada um entra se e quando incomodar de verdade.

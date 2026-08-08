@@ -11,7 +11,13 @@ Plano em [`docs/PLANO.md`](docs/PLANO.md).
 
 ```bash
 export DISCORD_TOKEN="seu-token"
-export DISCORD_GUILD_ID="id-da-sua-guild"   # comandos de guild aparecem na hora;
-                                            # globais levam até uma hora
 java -jar target/finance-bot.jar
 ```
+
+Sem `DISCORD_GUILD_ID` os comandos são registrados globalmente, que é o que os
+faz existir em conversa privada com o bot. Definindo a variável, eles passam a
+valer só naquele servidor — o registro é imediato, o que ajuda ao mexer nas
+assinaturas dos comandos.
+
+Para usar o bot sem estar em servidor nenhum, habilite **User Install** em
+*Installation* no portal do Discord e instale pelo link gerado lá.
