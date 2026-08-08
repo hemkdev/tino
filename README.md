@@ -14,8 +14,7 @@ Sem barra, sem formulário. Na conversa privada, é só digitar.
 
 ## Usar
 
-<!-- Substitua pelo link gerado no portal do Discord, em Installation → Install Link -->
-**[Adicionar o bot](https://discord.com/oauth2/authorize?client_id=SEU_CLIENT_ID)**
+**[Adicionar o bot](https://discord.com/oauth2/authorize?client_id=1535474778180292628)**
 
 Instale na sua conta (*Add to my apps*) e abra uma conversa com ele. O primeiro
 comando já cria suas categorias iniciais. Comece com `/ajuda`.
