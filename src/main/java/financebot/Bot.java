@@ -78,7 +78,8 @@ public class Bot extends ListenerAdapter {
         OptionData descricao = new OptionData(OptionType.STRING, "descricao", "Opcional");
         OptionData data = new OptionData(OptionType.STRING, "data", "DD/MM ou AAAA-MM-DD (padrão: hoje)");
         OptionData periodo = new OptionData(OptionType.STRING, "periodo", "Padrão: mês")
-                .addChoice("mês", "mes").addChoice("semana", "semana").addChoice("ano", "ano");
+                .addChoice("hoje", "dia").addChoice("semana", "semana")
+                .addChoice("mês", "mes").addChoice("ano", "ano");
 
         List<CommandData> comandos = List.of(
                 Commands.slash("gasto", "Registra uma despesa").addOptions(
@@ -213,15 +214,23 @@ public class Bot extends ListenerAdapter {
             return;
         }
         String texto = evento.getMessage().getContentRaw().trim();
-        if (!Entrada.pareceLancamento(texto)) {
-            return;   // conversa solta não vira lançamento
+        boolean lancamento = Entrada.pareceLancamento(texto);
+        Entrada.Consulta consulta = lancamento ? null : Entrada.consulta(texto);
+        if (!lancamento && consulta == null) {
+            return;   // conversa solta não vira nada
         }
         try {
             String usuario = evento.getAuthor().getId();
             Resposta resposta;
+            boolean primeiraVez;
             synchronized (conexao) {
-                Financas.prepararUsuario(conexao, usuario);
-                resposta = lote(usuario, texto, LocalDate.now());
+                primeiraVez = Financas.prepararUsuario(conexao, usuario);
+                resposta = lancamento
+                        ? lote(usuario, texto, LocalDate.now())
+                        : responderConsulta(usuario, consulta);
+            }
+            if (primeiraVez) {
+                evento.getMessage().replyEmbeds(Visual.boasVindas()).queue();
             }
             var acao = evento.getMessage().replyEmbeds(resposta.embed());
             if (resposta.botoes() != null) {
@@ -234,6 +243,24 @@ public class Bot extends ListenerAdapter {
             LOG.error("falha ao interpretar mensagem", e);
             evento.getMessage().replyEmbeds(Visual.erro("deu erro aqui, tenta de novo")).queue();
         }
+    }
+
+    /** "quanto gastei essa semana", "extrato de hoje" e afins. */
+    private Resposta responderConsulta(String usuario, Entrada.Consulta consulta)
+            throws SQLException {
+        return switch (consulta.tipo()) {
+            case "lancamentos" -> pagina(usuario, consulta.periodo(), 0);
+            case "categorias" -> Resposta.de(Visual.categorias(
+                    Financas.caminhos(conexao, usuario, Financas.GASTO, "", 200),
+                    Financas.contar(conexao, usuario, Financas.GASTO, true),
+                    Financas.caminhos(conexao, usuario, Financas.GANHO, "", 200),
+                    Financas.contar(conexao, usuario, Financas.GANHO, true),
+                    Financas.contar(conexao, usuario, Financas.GASTO, false),
+                    Financas.contar(conexao, usuario, Financas.GANHO, false)));
+            case "fixos" -> Resposta.de(Visual.recorrentes(Financas.recorrentes(conexao, usuario)));
+            case "ajuda" -> Resposta.de(Visual.ajuda());
+            default -> Resposta.de(resumo(usuario, consulta.periodo()));
+        };
     }
 
     @Override
