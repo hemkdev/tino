@@ -12,6 +12,7 @@ dados/
 
 # Build
 target/
+dependency-reduced-pom.xml
 build/
 *.class
 *.jar
@@ -34,3 +35,7 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# Maven
+target/
+dependency-reduced-pom.xml
