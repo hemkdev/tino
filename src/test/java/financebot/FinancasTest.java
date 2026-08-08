@@ -142,6 +142,36 @@ class FinancasTest {
     }
 
     @Test
+    void reusaCategoriaAcentuadaIgnorandoCaixa() throws SQLException {
+        assertEquals(Financas.categoriaId(c, EU, "Alimentação", GASTO),
+                Financas.categoriaId(c, EU, "ALIMENTAÇÃO", GASTO));
+        assertEquals(Financas.categoriaId(c, EU, "Alimentação", GASTO),
+                Financas.categoriaId(c, EU, "alimentação", GASTO));
+    }
+
+    @Test
+    void gravaCategoriaNaFormaCanonica() throws SQLException {
+        Financas.categoriaId(c, EU, "bem estar", GASTO);
+        Financas.categoriaId(c, EU, "cartão DE crédito", GASTO);
+
+        List<String> nomes = Financas.caminhos(c, EU, GASTO, "", 200);
+        assertTrue(nomes.contains("Bem Estar"));
+        assertTrue(nomes.contains("Cartão de Crédito"));
+    }
+
+    @Test
+    void normalizaCategoriasGravadasAntes() throws SQLException {
+        try (java.sql.Statement s = c.createStatement()) {
+            s.execute("INSERT INTO categoria (usuario, pai_id, tipo, nome) "
+                    + "VALUES ('" + EU + "', NULL, 'gasto', 'mercado antigo')");
+        }
+
+        Financas.normalizarCategorias(c);
+
+        assertTrue(Financas.caminhos(c, EU, GASTO, "", 200).contains("Mercado Antigo"));
+    }
+
+    @Test
     void rejeitaMaisDeDoisNiveis() {
         assertThrows(IllegalArgumentException.class,
                 () -> Financas.categoriaId(c, EU, "A > B > C", GASTO));

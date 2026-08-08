@@ -162,7 +162,7 @@ final class Financas {
             throw new IllegalArgumentException("são no máximo dois níveis: `Categoria > Subcategoria`");
         }
         for (int i = 0; i < partes.length; i++) {
-            partes[i] = partes[i].trim();
+            partes[i] = Entrada.capitalizar(partes[i]);
             if (partes[i].isEmpty()) {
                 throw new IllegalArgumentException("categoria inválida: " + caminho);
             }
@@ -173,9 +173,39 @@ final class Financas {
         return partes;
     }
 
-    // ponytail: COLLATE NOCASE do SQLite só ignora caixa em ASCII, então
-    // "ALIMENTAÇÃO" e "alimentação" viram categorias distintas. Se incomodar,
-    // guardar uma coluna com o nome normalizado.
+    /**
+     * Deixa as categorias já gravadas na forma canônica. Roda no boot; sem isso,
+     * quem usou o bot antes da normalização veria "mercado" e "Mercado" na lista.
+     */
+    static void normalizarCategorias(Connection c) throws SQLException {
+        record Ajuste(long id, String nome) {}
+        List<Ajuste> ajustes = new ArrayList<>();
+
+        try (Statement s = c.createStatement();
+             ResultSet rs = s.executeQuery("SELECT id, nome FROM categoria")) {
+            while (rs.next()) {
+                String canonico = Entrada.capitalizar(rs.getString(2));
+                if (!canonico.equals(rs.getString(2))) {
+                    ajustes.add(new Ajuste(rs.getLong(1), canonico));
+                }
+            }
+        }
+        if (ajustes.isEmpty()) {
+            return;
+        }
+        try (PreparedStatement ps = c.prepareStatement(
+                "UPDATE categoria SET nome = ? WHERE id = ?")) {
+            for (Ajuste a : ajustes) {
+                ps.setString(1, a.nome());
+                ps.setLong(2, a.id());
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        }
+    }
+
+    // Os nomes são gravados já normalizados, então a comparação bate exata.
+    // O COLLATE NOCASE fica como rede para linhas gravadas antes disso.
     private static Long buscar(Connection c, String usuario, String nome, Long pai, String tipo)
             throws SQLException {
         String sql = """
