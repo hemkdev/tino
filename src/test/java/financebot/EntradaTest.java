@@ -3,6 +3,7 @@ package financebot;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -82,12 +83,77 @@ class EntradaTest {
     }
 
     @Test
-    void categoriaEhUmCampoSo() {
-        // sem ">", a segunda palavra já é descrição
+    void semContextoCategoriaEhUmCampoSo() {
+        // sem ">", aspas ou categoria conhecida, a segunda palavra já é descrição
         Entrada.Item item = Entrada.item("50 bem estar");
 
         assertEquals("bem", item.categoria());
         assertEquals("estar", item.descricao());
+    }
+
+    @Test
+    void aspasAgrupamNomeComEspaco() {
+        Entrada.Item item = Entrada.item("50 \"bem estar\" 07/08 massagem");
+
+        assertEquals("bem estar", item.categoria());
+        assertEquals("07/08", item.data());
+        assertEquals("massagem", item.descricao());
+    }
+
+    @Test
+    void categoriaConhecidaComEspacoDispensaAspas() {
+        Entrada.Item item = Entrada.item("50 bem estar massagem", Set.of("Bem Estar"));
+
+        assertEquals("bem estar", item.categoria());
+        assertEquals("massagem", item.descricao());
+    }
+
+    @Test
+    void casaOMaiorNomeConhecidoPrimeiro() {
+        Entrada.Item item = Entrada.item("50 bem estar animal ração",
+                Set.of("Bem Estar", "Bem Estar Animal"));
+
+        assertEquals("bem estar animal", item.categoria());
+        assertEquals("ração", item.descricao());
+    }
+
+    @Test
+    void categoriaConhecidaNaoEngoleAData() {
+        Entrada.Item item = Entrada.item("50 bem estar 19/07", Set.of("Bem Estar"));
+
+        assertEquals("bem estar", item.categoria());
+        assertEquals("19/07", item.data());
+    }
+
+    @Test
+    void reconheceConhecidaIgnorandoCaixa() {
+        assertEquals("BEM ESTAR", Entrada.item("50 BEM ESTAR", Set.of("Bem Estar")).categoria());
+    }
+
+    // ------------------------------------------------------------ capitalizar
+
+    @Test
+    void capitalizaCadaPalavra() {
+        assertEquals("Bem Estar", Entrada.capitalizar("bem estar"));
+        assertEquals("Mercado", Entrada.capitalizar("MERCADO"));
+        assertEquals("Alimentação", Entrada.capitalizar("alimentação"));
+        assertEquals("Alimentação", Entrada.capitalizar("ALIMENTAÇÃO"));
+    }
+
+    @Test
+    void mantemConectivoEmMinuscula() {
+        assertEquals("Cartão de Crédito", Entrada.capitalizar("cartão de crédito"));
+        assertEquals("Contas da Casa", Entrada.capitalizar("CONTAS DA CASA"));
+    }
+
+    @Test
+    void conectivoNoInicioAindaEhCapitalizado() {
+        assertEquals("De Fulano", Entrada.capitalizar("de fulano"));
+    }
+
+    @Test
+    void enxugaEspacosSobrando() {
+        assertEquals("Bem Estar", Entrada.capitalizar("  bem   estar  "));
     }
 
     @Test

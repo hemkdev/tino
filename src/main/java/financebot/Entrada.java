@@ -2,6 +2,10 @@ package financebot;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Interpreta o que o usuário digita em texto corrido.
@@ -12,6 +16,9 @@ import java.util.List;
  *
  * <p>Depois da categoria, o campo é lido como data quando começa com dígito e
  * como descrição caso contrário — por isso a data, se houver, vem antes.
+ *
+ * <p>Nome de categoria com espaço vale sem aspas quando ela já existe; para criar
+ * uma nova, use aspas: {@code 50 "bem estar" 07/08}.
  *
  * <pre>
  * 50 mercado
@@ -27,18 +34,63 @@ final class Entrada {
 
     private static final String EXEMPLO = "não entendi — tente `50 mercado` ou `+3000 salário`";
 
+    private static final Locale BR = Locale.of("pt", "BR");
+
+    /** Conectivos ficam em minúscula no meio do nome: "Cartão de Crédito". */
+    private static final Set<String> CONECTIVOS =
+            Set.of("de", "da", "do", "das", "dos", "e", "com", "para", "em", "no", "na");
+
+    /** Campos separados por espaço, com aspas agrupando: {@code "bem estar"} é um campo só. */
+    private static final Pattern CAMPO = Pattern.compile("\"([^\"]*)\"|(\\S+)");
+
+    /** Quantos campos seguidos vale a pena testar como nome de categoria composta. */
+    private static final int MAX_CAMPOS_CATEGORIA = 4;
+
     record Item(long centavos, String categoria, String data, String descricao, boolean ganho) {}
 
     private Entrada() {}
 
+    /**
+     * Forma canônica do nome de uma categoria. Como a comparação passa a ser
+     * entre nomes já normalizados, "MERCADO" e "mercado" viram o mesmo — inclusive
+     * com acento, que o COLLATE NOCASE do SQLite não cobre.
+     */
+    static String capitalizar(String nome) {
+        if (nome == null) {
+            return null;
+        }
+        StringBuilder saida = new StringBuilder();
+        String[] palavras = nome.trim().toLowerCase(BR).split("\\s+");
+        for (int i = 0; i < palavras.length; i++) {
+            if (palavras[i].isEmpty()) {
+                continue;
+            }
+            if (!saida.isEmpty()) {
+                saida.append(' ');
+            }
+            saida.append(i > 0 && CONECTIVOS.contains(palavras[i])
+                    ? palavras[i]
+                    : Character.toUpperCase(palavras[i].charAt(0)) + palavras[i].substring(1));
+        }
+        return saida.toString();
+    }
+
     static List<Item> lista(String texto) {
+        return lista(texto, Set.of());
+    }
+
+    /**
+     * @param conhecidas categorias já existentes do usuário, para reconhecer nomes
+     *                   compostos sem exigir aspas. Pode vir vazio.
+     */
+    static List<Item> lista(String texto, Set<String> conhecidas) {
         if (texto == null || texto.isBlank()) {
             throw new IllegalArgumentException(EXEMPLO);
         }
         List<Item> itens = new ArrayList<>();
         for (String parte : texto.split(",")) {
             if (!parte.isBlank()) {
-                itens.add(item(parte));
+                itens.add(item(parte, conhecidas));
             }
         }
         if (itens.isEmpty()) {
@@ -48,6 +100,10 @@ final class Entrada {
     }
 
     static Item item(String texto) {
+        return item(texto, Set.of());
+    }
+
+    static Item item(String texto, Set<String> conhecidas) {
         String resto = texto.trim();
 
         boolean ganho = resto.startsWith("+");
@@ -55,32 +111,38 @@ final class Entrada {
             resto = resto.substring(1).trim();
         }
 
-        String[] campos = resto.split("\\s+");
-        long centavos = Dinheiro.paraCentavos(campos[0]);   // lança com mensagem própria
+        List<String> campos = campos(resto);
+        long centavos = Dinheiro.paraCentavos(campos.get(0));   // lança com mensagem própria
 
         int i = 1;
         String categoria = null;
-        if (i < campos.length) {
-            // "Alimentação > Mercado" ocupa três campos; o ">" costura os pedaços.
-            StringBuilder caminho = new StringBuilder(campos[i++]);
-            while (i < campos.length
-                    && (campos[i].startsWith(">") || caminho.charAt(caminho.length() - 1) == '>')) {
-                caminho.append(' ').append(campos[i++]);
+        if (i < campos.size()) {
+            int consumidos = casarConhecida(campos, i, conhecidas);
+            if (consumidos > 0) {
+                categoria = String.join(" ", campos.subList(i, i + consumidos));
+                i += consumidos;
+            } else {
+                // "Alimentação > Mercado" ocupa três campos; o ">" costura os pedaços.
+                StringBuilder caminho = new StringBuilder(campos.get(i++));
+                while (i < campos.size() && (campos.get(i).startsWith(">")
+                        || caminho.charAt(caminho.length() - 1) == '>')) {
+                    caminho.append(' ').append(campos.get(i++));
+                }
+                categoria = caminho.toString();
             }
-            categoria = caminho.toString();
         }
 
         // Começa com dígito, é data; começa com letra, já é a descrição.
         String data = null;
-        if (i < campos.length && Character.isDigit(campos[i].charAt(0))) {
-            data = campos[i++];
+        if (i < campos.size() && Character.isDigit(campos.get(i).charAt(0))) {
+            data = campos.get(i++);
         }
 
-        if (i < campos.length && campos[i].equals("-")) {
+        if (i < campos.size() && campos.get(i).equals("-")) {
             i++;   // "50 mercado - pão" continua funcionando
         }
-        String descricao = i < campos.length
-                ? String.join(" ", java.util.Arrays.copyOfRange(campos, i, campos.length))
+        String descricao = i < campos.size()
+                ? String.join(" ", campos.subList(i, campos.size()))
                 : null;
 
         return new Item(centavos,
@@ -88,6 +150,30 @@ final class Entrada {
                 data,
                 descricao == null || descricao.isBlank() ? null : descricao,
                 ganho);
+    }
+
+    /** Quantos campos a partir de {@code i} formam uma categoria que já existe. */
+    private static int casarConhecida(List<String> campos, int i, Set<String> conhecidas) {
+        if (conhecidas.isEmpty()) {
+            return 0;
+        }
+        int maximo = Math.min(MAX_CAMPOS_CATEGORIA, campos.size() - i);
+        // Do maior para o menor: "Bem Estar Animal" ganha de "Bem Estar".
+        for (int n = maximo; n >= 1; n--) {
+            if (conhecidas.contains(capitalizar(String.join(" ", campos.subList(i, i + n))))) {
+                return n;
+            }
+        }
+        return 0;
+    }
+
+    private static List<String> campos(String texto) {
+        List<String> campos = new ArrayList<>();
+        Matcher m = CAMPO.matcher(texto);
+        while (m.find()) {
+            campos.add(m.group(1) != null ? m.group(1) : m.group(2));
+        }
+        return campos;
     }
 
     /** Vale a pena tratar como lançamento? Usado para ignorar conversa solta na DM. */
