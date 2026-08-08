@@ -1,9 +1,12 @@
 <img src="docs/marca/avatar.png" width="120" align="right" alt="">
 
-# finance-bot
+# Tino
 
 Bot de Discord para controle financeiro pessoal, em Java. Registre gastos e
 ganhos por categoria conversando na DM e veja para onde seu dinheiro está indo.
+
+O nome vem de *ter tino* — juízo, discernimento. É o que ele faz: te dá noção de
+para onde o dinheiro está indo, sem planilha e sem cerimônia.
 
 ```
 50 mercado
@@ -16,7 +19,7 @@ Sem barra, sem formulário. Na conversa privada, é só digitar.
 
 ## Usar
 
-**[Adicionar o bot](https://discord.com/oauth2/authorize?client_id=1535474778180292628)**
+**[Adicionar o Tino](https://discord.com/oauth2/authorize?client_id=1535474778180292628)**
 
 Instale na sua conta (*Add to my apps*) e abra uma conversa com ele. O primeiro
 comando já cria suas categorias iniciais. Comece com `/ajuda`.
@@ -38,7 +41,10 @@ Cada pessoa vê apenas os próprios lançamentos.
 | `/fixo` | Aluguel e assinaturas, lançados de uma vez |
 | `/ajuda` | Exemplos de uso |
 
-Período aceita `mês` (padrão), `semana` ou `ano`.
+Período aceita `hoje`, `semana`, `mês` (padrão) ou `ano`.
+
+Na DM você também pode só perguntar, sem comando: **quanto gastei esse mês?**,
+**resumo da semana**, **extrato de hoje**, **meus fixos**, **ajuda**.
 
 ### Formato do texto livre
 

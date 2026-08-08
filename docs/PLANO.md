@@ -1,4 +1,4 @@
-# finance-bot — plano
+# Tino — plano
 
 Bot de Discord para controle financeiro pessoal. Registrar ganhos e despesas por
 categoria, ver quanto foi gasto em cada uma e como evoluiu de um mês para o
@@ -19,8 +19,9 @@ outro.
 | `/fixo listar\|adicionar\|remover\|lancar` | Aluguel e assinaturas, lançados de uma vez |
 | `/ajuda` | Exemplos de uso |
 
-Na conversa privada, texto solto também vira lançamento: `50 mercado` sem barra
-nenhuma. Só entra o que começa com número — conversa comum é ignorada.
+Na conversa privada, texto solto vira lançamento (`50 mercado`) ou consulta
+(`quanto gastei essa semana`, `extrato de hoje`). O que não casa com nenhum dos
+dois é ignorado, para conversa comum não gerar resposta.
 
 Cada registro traz botões de **Desfazer** e **Editar**. O contexto viaja no id do
 botão, então eles continuam funcionando depois de reiniciar o bot, e clique de
@@ -36,9 +37,10 @@ Três colunas de decisão e nada mais:
 ```sql
 CREATE TABLE IF NOT EXISTS categoria (
     id      INTEGER PRIMARY KEY,
-    usuario TEXT,                                  -- NULL = categoria padrão
+    usuario TEXT    NOT NULL,
     pai_id  INTEGER REFERENCES categoria(id),      -- NULL = categoria raiz
-    nome    TEXT NOT NULL
+    tipo    TEXT    NOT NULL,                      -- gasto | ganho
+    nome    TEXT    NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS lancamento (
@@ -48,6 +50,14 @@ CREATE TABLE IF NOT EXISTS lancamento (
     categoria_id   INTEGER NOT NULL REFERENCES categoria(id),
     descricao      TEXT,
     data           TEXT    NOT NULL                -- AAAA-MM-DD
+);
+
+CREATE TABLE IF NOT EXISTS recorrente (
+    id             INTEGER PRIMARY KEY,
+    usuario        TEXT    NOT NULL,
+    valor_centavos INTEGER NOT NULL,
+    categoria_id   INTEGER NOT NULL REFERENCES categoria(id),
+    descricao      TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_consulta ON lancamento (usuario, data);
@@ -61,6 +71,17 @@ decidiria quando somar e quando subtrair.
 
 **Subcategoria é `pai_id` apontando para a própria tabela.** Um nível ou vários,
 tanto faz — a query de resumo agrupa pela raiz.
+
+**Categorias de gasto e de ganho são listas separadas**, distinguidas por `tipo`.
+"Outros" existe nos dois lados, como categorias diferentes.
+
+**Categoria pertence sempre a alguém.** As iniciais são criadas para o usuário no
+primeiro contato, e não como registros do sistema — é isso que permite renomear e
+excluir qualquer uma delas.
+
+**Nomes gravados em forma canônica** (`Cartão de Crédito`), o que torna a
+comparação insensível a caixa mesmo com acento — onde o `COLLATE NOCASE` do
+SQLite falha.
 
 **`CREATE TABLE IF NOT EXISTS` no boot.** Sem ferramenta de migração enquanto o
 schema couber nisso.
@@ -101,7 +122,7 @@ silenciosamente:
    `HALF_UP`. O parser aceita `50`, `50,00` e `1.234,56`.
 2. Toda query filtra por `usuario`. Sem exceção.
 3. Data futura é rejeitada.
-4. Categoria só pode ser usada pelo dono ou ser padrão do sistema.
+4. Categoria só pode ser usada pelo dono, e nunca cruza entre gasto e ganho.
 5. Comparação com período anterior de total zero exibe `—`, nunca divisão por
    zero.
 6. Nada de token ou dado financeiro em log.
