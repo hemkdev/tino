@@ -51,6 +51,7 @@ final class Financas {
 
         static Periodo de(String tipo, LocalDate hoje) {
             return switch (tipo) {
+                case "dia" -> new Periodo(hoje, hoje, ChronoUnit.DAYS);
                 case "semana" -> new Periodo(
                         hoje.with(DayOfWeek.MONDAY), hoje.with(DayOfWeek.SUNDAY), ChronoUnit.WEEKS);
                 case "ano" -> new Periodo(
@@ -62,6 +63,7 @@ final class Financas {
 
         Periodo anterior() {
             return switch (unidade) {
+                case DAYS -> new Periodo(inicio.minusDays(1), fim.minusDays(1), unidade);
                 case WEEKS -> new Periodo(inicio.minusWeeks(1), fim.minusWeeks(1), unidade);
                 case YEARS -> new Periodo(inicio.minusYears(1), fim.minusYears(1), unidade);
                 default -> {
@@ -109,13 +111,14 @@ final class Financas {
      * Cria as categorias iniciais na primeira vez que o usuário aparece.
      * São dele, e não do sistema, justamente para que possa renomear e excluir.
      */
-    static void prepararUsuario(Connection c, String usuario) throws SQLException {
+    /** @return true na primeira vez, para quem chama poder dar as boas-vindas. */
+    static boolean prepararUsuario(Connection c, String usuario) throws SQLException {
         try (PreparedStatement ps = c.prepareStatement(
                 "SELECT COUNT(*) FROM categoria WHERE usuario = ?")) {
             ps.setString(1, usuario);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next() && rs.getInt(1) > 0) {
-                    return;
+                    return false;
                 }
             }
         }
@@ -135,6 +138,7 @@ final class Financas {
             }
             ps.executeBatch();
         }
+        return true;
     }
 
     // ------------------------------------------------------------ categorias
