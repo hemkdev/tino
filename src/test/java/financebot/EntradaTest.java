@@ -223,6 +223,69 @@ class EntradaTest {
         assertTrue(Entrada.pareceLancamento("1.234,56 moradia"));
     }
 
+    // -------------------------------------------------------------- consulta
+
+    @Test
+    void reconhecePedidoDeResumo() {
+        assertEquals("resumo", Entrada.consulta("resumo").tipo());
+        assertEquals("resumo", Entrada.consulta("quanto gastei esse mês?").tipo());
+        assertEquals("resumo", Entrada.consulta("Qual meu saldo").tipo());
+        assertEquals("resumo", Entrada.consulta("como estou").tipo());
+    }
+
+    @Test
+    void reconhecePedidoDeExtrato() {
+        assertEquals("lancamentos", Entrada.consulta("extrato").tipo());
+        assertEquals("lancamentos", Entrada.consulta("últimos lançamentos").tipo());
+    }
+
+    @Test
+    void reconheceAjudaCategoriasEFixos() {
+        assertEquals("ajuda", Entrada.consulta("ajuda").tipo());
+        assertEquals("ajuda", Entrada.consulta("como funciona?").tipo());
+        assertEquals("categorias", Entrada.consulta("categorias").tipo());
+        assertEquals("fixos", Entrada.consulta("meus fixos").tipo());
+    }
+
+    @Test
+    void extraiOPeriodoDaFrase() {
+        assertEquals("dia", Entrada.consulta("quanto gastei hoje").periodo());
+        assertEquals("semana", Entrada.consulta("resumo da semana").periodo());
+        assertEquals("ano", Entrada.consulta("quanto gastei esse ano").periodo());
+        assertEquals("mes", Entrada.consulta("resumo").periodo());   // padrão
+    }
+
+    @Test
+    void ignoraAcentoECaixaNoPedido() {
+        assertEquals("resumo", Entrada.consulta("QUANTO GASTEI").tipo());
+        assertEquals("lancamentos", Entrada.consulta("Histórico").tipo());
+    }
+
+    @Test
+    void gatilhoMaisLongoGanha() {
+        // "quanto gastei" é mais específico que "gastos"
+        assertEquals("resumo", Entrada.consulta("quanto gastei com gastos").tipo());
+    }
+
+    @Test
+    void conversaSemGatilhoNaoViraConsulta() {
+        assertNull(Entrada.consulta("oi"));
+        assertNull(Entrada.consulta("obrigado"));
+        assertNull(Entrada.consulta("bom dia"));
+        assertNull(Entrada.consulta(""));
+        assertNull(Entrada.consulta(null));
+    }
+
+    @Test
+    void textoLongoDemaisNaoViraConsulta() {
+        assertNull(Entrada.consulta("resumo ".repeat(40)));
+    }
+
+    @Test
+    void palavraDentroDeOutraNaoDispara() {
+        assertNull(Entrada.consulta("resumindo a historia"));
+    }
+
     @Test
     void conversaSoltaNaoViraLancamento() {
         assertFalse(Entrada.pareceLancamento("oi"));

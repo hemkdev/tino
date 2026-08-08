@@ -1,8 +1,10 @@
 package financebot;
 
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -183,5 +185,75 @@ final class Entrada {
         }
         String primeiro = texto.trim().replaceFirst("^[+-]", "").trim().split("\\s+")[0];
         return primeiro.matches("[0-9]+([.,][0-9]+)*");
+    }
+
+    // --------------------------------------------------------------- consulta
+
+    /** O que a pessoa quis ver, quando escreveu em vez de usar um comando. */
+    record Consulta(String tipo, String periodo) {}
+
+    private static final Map<String, List<String>> GATILHOS = Map.of(
+            "resumo", List.of("resumo", "quanto gastei", "quanto ganhei", "gastos", "gasto total",
+                    "saldo", "balanco", "relatorio", "como estou", "situacao"),
+            "lancamentos", List.of("lancamentos", "lancamento", "extrato", "ultimos", "listar",
+                    "historico", "o que gastei"),
+            "categorias", List.of("categorias", "categoria"),
+            "fixos", List.of("fixos", "fixo", "recorrentes", "assinaturas"),
+            "ajuda", List.of("ajuda", "help", "como usa", "como funciona", "comandos", "o que faz"));
+
+    private static final Map<String, List<String>> PERIODOS = Map.of(
+            "dia", List.of("hoje", "de hoje", "do dia"),
+            "semana", List.of("semana"),
+            "ano", List.of("ano"),
+            "mes", List.of("mes"));
+
+    /**
+     * Reconhece pedidos escritos em texto: "resumo", "quanto gastei essa semana",
+     * "extrato de hoje". Devolve {@code null} quando não é nada disso — conversa
+     * solta não deve gerar resposta.
+     */
+    static Consulta consulta(String texto) {
+        if (texto == null || texto.isBlank() || texto.length() > 120) {
+            return null;
+        }
+        String limpo = semAcento(texto.toLowerCase(BR)).replaceAll("[?!.,]", " ").trim();
+
+        String tipo = null;
+        int melhor = -1;
+        for (var entrada : GATILHOS.entrySet()) {
+            for (String gatilho : entrada.getValue()) {
+                // O gatilho mais longo ganha: "quanto gastei" vence "gastos".
+                if (contemPalavra(limpo, gatilho) && gatilho.length() > melhor) {
+                    melhor = gatilho.length();
+                    tipo = entrada.getKey();
+                }
+            }
+        }
+        if (tipo == null) {
+            return null;
+        }
+
+        String periodo = "mes";
+        for (var entrada : PERIODOS.entrySet()) {
+            for (String palavra : entrada.getValue()) {
+                if (contemPalavra(limpo, palavra)) {
+                    periodo = entrada.getKey();
+                }
+            }
+        }
+        return new Consulta(tipo, periodo);
+    }
+
+    /** Evita que "categoria" case dentro de outra palavra maior. */
+    private static boolean contemPalavra(String texto, String alvo) {
+        return (" " + texto + " ").contains(" " + alvo + " ")
+                || texto.startsWith(alvo + " ")
+                || texto.endsWith(" " + alvo)
+                || texto.equals(alvo);
+    }
+
+    private static String semAcento(String texto) {
+        return Normalizer.normalize(texto, Normalizer.Form.NFD)
+                .replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
     }
 }
