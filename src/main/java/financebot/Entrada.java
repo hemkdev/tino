@@ -6,12 +6,19 @@ import java.util.List;
 /**
  * Interpreta o que o usuário digita em texto corrido.
  *
- * <p>Formato: {@code [+]valor categoria [- descrição]}, vários separados por
- * vírgula. O {@code +} marca ganho; sem sinal é gasto, que é o caso comum.
+ * <p>Formato: {@code [+]valor categoria [data] [descrição]}, com espaço separando
+ * os campos e vários lançamentos separados por vírgula. O {@code +} marca ganho;
+ * sem sinal é gasto, que é o caso comum.
+ *
+ * <p>Depois da categoria, o campo é lido como data quando começa com dígito e
+ * como descrição caso contrário — por isso a data, se houver, vem antes.
  *
  * <pre>
  * 50 mercado
- * 50 alimentação &gt; mercado - pão e leite
+ * 50 mercado 07/08
+ * 50 mercado 07/08 pão e leite
+ * 50 mercado pão e leite
+ * 50 alimentação &gt; mercado 07/08 feira
  * +3000 salário
  * 50 mercado, 30 uber, 12 café
  * </pre>
@@ -20,7 +27,7 @@ final class Entrada {
 
     private static final String EXEMPLO = "não entendi — tente `50 mercado` ou `+3000 salário`";
 
-    record Item(long centavos, String categoria, String descricao, boolean ganho) {}
+    record Item(long centavos, String categoria, String data, String descricao, boolean ganho) {}
 
     private Entrada() {}
 
@@ -48,22 +55,37 @@ final class Entrada {
             resto = resto.substring(1).trim();
         }
 
-        int espaco = resto.indexOf(' ');
-        String valor = espaco < 0 ? resto : resto.substring(0, espaco);
-        long centavos = Dinheiro.paraCentavos(valor);   // lança com mensagem própria
+        String[] campos = resto.split("\\s+");
+        long centavos = Dinheiro.paraCentavos(campos[0]);   // lança com mensagem própria
 
-        String cauda = espaco < 0 ? "" : resto.substring(espaco + 1).trim();
-        String categoria = cauda;
-        String descricao = null;
-
-        int traco = cauda.indexOf(" - ");
-        if (traco >= 0) {
-            categoria = cauda.substring(0, traco).trim();
-            descricao = cauda.substring(traco + 3).trim();
+        int i = 1;
+        String categoria = null;
+        if (i < campos.length) {
+            // "Alimentação > Mercado" ocupa três campos; o ">" costura os pedaços.
+            StringBuilder caminho = new StringBuilder(campos[i++]);
+            while (i < campos.length
+                    && (campos[i].startsWith(">") || caminho.charAt(caminho.length() - 1) == '>')) {
+                caminho.append(' ').append(campos[i++]);
+            }
+            categoria = caminho.toString();
         }
 
+        // Começa com dígito, é data; começa com letra, já é a descrição.
+        String data = null;
+        if (i < campos.length && Character.isDigit(campos[i].charAt(0))) {
+            data = campos[i++];
+        }
+
+        if (i < campos.length && campos[i].equals("-")) {
+            i++;   // "50 mercado - pão" continua funcionando
+        }
+        String descricao = i < campos.length
+                ? String.join(" ", java.util.Arrays.copyOfRange(campos, i, campos.length))
+                : null;
+
         return new Item(centavos,
-                categoria.isBlank() ? null : categoria,     // sem categoria: quem chama decide o padrão
+                categoria == null || categoria.isBlank() ? null : categoria,
+                data,
                 descricao == null || descricao.isBlank() ? null : descricao,
                 ganho);
     }

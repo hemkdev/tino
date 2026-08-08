@@ -18,22 +18,84 @@ class EntradaTest {
 
         assertEquals(5_000, item.centavos());
         assertEquals("mercado", item.categoria());
+        assertNull(item.data());
         assertNull(item.descricao());
         assertFalse(item.ganho());
     }
 
+    // ------------------------------------------------------------------ data
+
     @Test
-    void separaDescricaoDepoisDoTraco() {
-        Entrada.Item item = Entrada.item("50 mercado - pão e leite");
+    void campoComDigitoDepoisDaCategoriaEhData() {
+        Entrada.Item item = Entrada.item("50 mercado 07/08");
 
         assertEquals("mercado", item.categoria());
+        assertEquals("07/08", item.data());
+        assertNull(item.descricao());
+    }
+
+    @Test
+    void descricaoVemDepoisDaData() {
+        Entrada.Item item = Entrada.item("50 mercado 07/08 pão e leite");
+
+        assertEquals("mercado", item.categoria());
+        assertEquals("07/08", item.data());
         assertEquals("pão e leite", item.descricao());
     }
 
     @Test
-    void hifenDentroDoNomeNaoViraSeparador() {
-        assertEquals("bem-estar", Entrada.item("50 bem-estar").categoria());
+    void campoComLetraDepoisDaCategoriaEhDescricao() {
+        Entrada.Item item = Entrada.item("50 mercado pão e leite");
+
+        assertEquals("mercado", item.categoria());
+        assertNull(item.data());
+        assertEquals("pão e leite", item.descricao());
     }
+
+    @Test
+    void aceitaDataIsoEDiaSolto() {
+        assertEquals("2026-08-07", Entrada.item("50 mercado 2026-08-07").data());
+        assertEquals("7", Entrada.item("50 mercado 7").data());
+    }
+
+    @Test
+    void tracoAntigoContinuaFuncionando() {
+        assertEquals("pão", Entrada.item("50 mercado - pão").descricao());
+    }
+
+    // ------------------------------------------------------------ categorias
+
+    @Test
+    void costuraCaminhoDeSubcategoria() {
+        Entrada.Item item = Entrada.item("50 alimentação > mercado 07/08 feira");
+
+        assertEquals("alimentação > mercado", item.categoria());
+        assertEquals("07/08", item.data());
+        assertEquals("feira", item.descricao());
+    }
+
+    @Test
+    void aceitaCaminhoSemEspacoNoSeparador() {
+        assertEquals("alimentação>mercado", Entrada.item("50 alimentação>mercado").categoria());
+        assertEquals("alimentação> mercado", Entrada.item("50 alimentação> mercado").categoria());
+        assertEquals("alimentação >mercado", Entrada.item("50 alimentação >mercado").categoria());
+    }
+
+    @Test
+    void categoriaEhUmCampoSo() {
+        // sem ">", a segunda palavra já é descrição
+        Entrada.Item item = Entrada.item("50 bem estar");
+
+        assertEquals("bem", item.categoria());
+        assertEquals("estar", item.descricao());
+    }
+
+    @Test
+    void semCategoriaDeixaNuloParaQuemChamaDecidir() {
+        assertNull(Entrada.item("50").categoria());
+    }
+
+    // ----------------------------------------------------------------- sinal
 
     @Test
     void maisMarcaGanho() {
@@ -50,15 +112,7 @@ class EntradaTest {
         assertFalse(Entrada.item("-50 mercado").ganho());
     }
 
-    @Test
-    void aceitaCaminhoDeSubcategoria() {
-        assertEquals("alimentação > mercado", Entrada.item("50 alimentação > mercado").categoria());
-    }
-
-    @Test
-    void semCategoriaDeixaNuloParaQuemChamaDecidir() {
-        assertNull(Entrada.item("50").categoria());
-    }
+    // ----------------------------------------------------------------- lista
 
     @Test
     void virgulaSeparaVariosLancamentos() {
@@ -67,6 +121,15 @@ class EntradaTest {
         assertEquals(3, itens.size());
         assertEquals("uber", itens.get(1).categoria());
         assertTrue(itens.get(2).ganho());
+    }
+
+    @Test
+    void cadaItemTemSuaPropriaData() {
+        List<Entrada.Item> itens = Entrada.lista("50 mercado 05/08, 30 uber 06/08 corrida");
+
+        assertEquals("05/08", itens.get(0).data());
+        assertEquals("06/08", itens.get(1).data());
+        assertEquals("corrida", itens.get(1).descricao());
     }
 
     @Test
