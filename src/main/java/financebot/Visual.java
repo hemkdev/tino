@@ -372,12 +372,18 @@ final class Visual {
                 .setDescription("""
                         Na conversa comigo, é só digitar — sem barra:
                         ```
+                        valor  categoria  [data]  [descrição]
+
                         50 mercado
-                        50 mercado - pão e leite
+                        50 mercado 07/08
+                        50 mercado 07/08 pão e leite
+                        50 mercado pão e leite
                         +3000 salário
                         50 mercado, 30 uber, 12 café
                         ```
-                        O `+` marca ganho. Sem sinal, é gasto.""")
+                        O `+` marca ganho; sem sinal é gasto. Depois da categoria, \
+                        campo que começa com número é data, com letra é descrição — \
+                        por isso a data vem antes.""")
                 .addField("Registrar",
                         "`/gasto 50 mercado` · `/ganho 3000 salário`\n"
                                 + "Categoria é opcional — sem ela, vai para Outros.\n"

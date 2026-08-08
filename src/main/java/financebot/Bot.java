@@ -392,7 +392,8 @@ public class Bot extends ListenerAdapter {
         if (itens.size() == 1) {
             Entrada.Item item = itens.get(0);
             return gravar(usuario, item.ganho() ? item.centavos() : -item.centavos(),
-                    item.categoria() == null ? PADRAO : item.categoria(), item.descricao(), hoje);
+                    item.categoria() == null ? PADRAO : item.categoria(), item.descricao(),
+                    Financas.parseData(item.data(), hoje));
         }
 
         List<String> linhas = new ArrayList<>();
@@ -404,7 +405,7 @@ public class Bot extends ListenerAdapter {
             long categoriaId = Financas.categoriaId(conexao, usuario, categoria,
                     item.ganho() ? Financas.GANHO : Financas.GASTO);
             long id = Financas.registrar(conexao, usuario, centavos, categoriaId,
-                    item.descricao(), hoje);
+                    item.descricao(), Financas.parseData(item.data(), hoje));
 
             if (item.ganho()) {
                 totalGanho += item.centavos();
