@@ -24,7 +24,8 @@ Sem barra, sem formulário. Na conversa privada, é só digitar.
 Instale na sua conta (*Add to my apps*) e abra uma conversa com ele. O primeiro
 comando já cria suas categorias iniciais. Comece com `/ajuda`.
 
-Cada pessoa vê apenas os próprios lançamentos.
+Cada pessoa vê apenas os próprios lançamentos. O que é guardado, onde fica e como
+apagar está em [`docs/PRIVACIDADE.md`](docs/PRIVACIDADE.md).
 
 ## Comandos
 
