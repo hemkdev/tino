@@ -198,6 +198,8 @@ Cada regra abaixo é candidata direta a caso de teste.
 - **RN-24** — O token de interação do Discord expira em 15 minutos. Passado esse prazo, o clique em um botão retorna orientação para repetir o comando, nunca uma falha silenciosa.
 - **RN-25** — Confirmação de remoção não respondida expira sem remover nada. O default de uma confirmação abandonada é sempre não agir.
 - **RN-26** — O modal de edição chega preenchido com os valores atuais do lançamento; campo deixado em branco significa remover o valor, e campo não alterado significa manter.
+- **RN-27** — Componentes interativos continuam funcionando após reinício do bot: o contexto necessário viaja no identificador do componente, não em memória do processo. Clicar em «Próximo» numa listagem aberta antes de um reinício continua paginando corretamente, dentro do prazo da RN-24.
+- **RN-28** — O identificador de um componente interativo nunca carrega valor monetário nem descrição de lançamento, apenas identificadores — ele é visível a qualquer cliente Discord.
 
 ### Relatórios
 

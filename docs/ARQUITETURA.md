@@ -1,6 +1,6 @@
 # Arquitetura — finance-bot
 
-- **Versão:** 0.1.0
+- **Versão:** 0.2.0
 - **Data:** 2026-08-07
 - **Complementa:** [`ESPECIFICACAO.md`](ESPECIFICACAO.md)
 
@@ -23,12 +23,29 @@ usuário percebe.
 | AD-07 | Relatórios como embeds textuais | Sem dependência gráfica; saída verificável por asserção de string |
 | AD-08 | `BigDecimal` no domínio, inteiro de centavos na persistência | Elimina erro de ponto flutuante e ambiguidade de arredondamento |
 | AD-09 | Java 25 (LTS), build com Maven Wrapper | Build reprodutível, sem depender do que está instalado na máquina |
-| AD-10 | `java.time.Clock` injetado; proibido chamar `now()` estático | Torna determinístico todo teste que envolve data — ver seção 4 |
-| AD-11 | Fakes em memória no lugar de mocks para repositórios | Testa estado resultante em vez de sequência de chamadas — ver seção 6 |
-| AD-12 | SQLite em WAL mode com um único escritor | Modo correto de operar SQLite sob concorrência do JDA — ver seção 5 |
+| AD-10 | `java.time.Clock` injetado; proibido chamar `now()` estático | Torna determinístico todo teste que envolve data — ver seção 5 |
+| AD-11 | Fakes em memória no lugar de mocks para repositórios | Testa estado resultante em vez de sequência de chamadas — ver seção 7 |
+| AD-12 | SQLite em WAL mode com um único escritor | Modo correto de operar SQLite sob concorrência do JDA — ver seção 6 |
 | AD-13 | Empacotamento em contêiner Docker desde a Fase 0 | Desacopla a aplicação da escolha de hospedagem, que fica adiada sem bloquear nada |
 | AD-14 | Comandos registrados por guild em desenvolvimento, globais em produção | Registro global leva até uma hora para propagar; por guild é imediato |
 | AD-15 | Repositório privado no GitHub com CI em Actions | `./mvnw verify` a cada push, sem exposição pública |
+| AD-16 | Estado de componentes interativos codificado no `customId`, sem estado em memória | Sobrevive a reinício do bot, não vaza memória e mantém os handlers como função pura — ver seção 4 |
+
+### Alternativas descartadas
+
+**Arquitetura em camadas** — o serviço dependeria do repositório concreto, o que
+exigiria banco para testar regra de negócio. Extrair interfaces para resolver
+isso converge para a própria hexagonal.
+
+**Vertical slice** — tecnicamente equivalente em testabilidade e superior em
+navegação, com portas menores por fatia. Descartada por razão didática: a
+hexagonal canônica é a que a literatura descreve com esse nome, o que importa
+dado o objetivo de aprendizado do projeto.
+
+**MVC** — não é alternativa; opera em outro eixo. Ver nota na seção 2.
+
+**CQRS com event sourcing** — adequado ao domínio financeiro em princípio, mas
+com custo desproporcional para o escopo.
 
 ---
 
@@ -85,6 +102,19 @@ infraestrutura ──►  (monta tudo, só no boot)
 Verificado por teste ArchUnit — em particular, `dominio` não pode importar
 `net.dv8tion.jda` nem `java.sql`.
 
+### Nota sobre MVC
+
+O adaptador de entrada é organizado em MVC, no sentido de Model 2: os handlers de
+comando são os *controllers*, as fábricas de embed em `apresentacao/` são as
+*views*, e `dominio` com `aplicacao` formam o *model*.
+
+MVC descreve a organização da borda com o usuário; a hexagonal descreve a
+direção das dependências do sistema. Os dois convivem, e o que MVC
+deliberadamente não define — a fronteira de acesso a dados — é justamente o que a
+hexagonal resolve por portas. Adotar MVC como arquitetura principal deixaria essa
+fronteira em aberto, e o preenchimento usual (o modelo sabendo se persistir)
+tornaria as regras de negócio intestáveis sem banco.
+
 ---
 
 ## 3. Fluxo de uma interação
@@ -117,7 +147,32 @@ interface.
 
 ---
 
-## 4. Tempo
+## 4. Estado de componentes interativos
+
+Botões e modais precisam saber o contexto do clique — em qual página o usuário
+estava, qual lançamento seria removido. Esse estado **não** é mantido em memória.
+
+O Discord fornece um `customId` de até 100 caracteres por componente, devolvido
+intacto na interação. É nele que o contexto viaja:
+
+```java
+Button.secondary("pag:lanc:%d:%d".formatted(usuarioId, proximaPagina), "Próximo");
+Button.danger("rem:confirmar:%d".formatted(numeroLancamento), "Confirmar");
+```
+
+O handler decodifica o `customId` e trata a interação como qualquer outro
+comando. Consequências:
+
+- O estado sobrevive a reinício do bot.
+- Não há mapa em memória crescendo indefinidamente com telas abandonadas.
+- O handler permanece função de entrada para saída, testável sem infraestrutura.
+
+O `customId` carrega o `usuarioId` de origem justamente para atender à RN-23:
+o handler compara com quem clicou e rejeita interação de terceiros. Como o
+`customId` é visível a qualquer cliente, ele nunca deve conter valor monetário,
+descrição ou qualquer dado sensível — apenas identificadores.
+
+## 5. Tempo
 
 Nenhuma classe chama `LocalDate.now()`, `Instant.now()` ou equivalente. Todo
 componente que precisa saber "agora" recebe um `java.time.Clock` no construtor.
@@ -141,7 +196,7 @@ Convenções complementares:
 
 ---
 
-## 5. Persistência
+## 6. Persistência
 
 ### Esboço do schema
 
@@ -207,7 +262,7 @@ exatamente o tipo de detalhe que um ORM esconderia.
 
 ---
 
-## 6. Estratégia de teste
+## 7. Estratégia de teste
 
 | Camada | Tipo | Dependências |
 |---|---|---|
@@ -241,7 +296,7 @@ Só então os casos de uso, e por último os adaptadores.
 
 ---
 
-## 7. Stack
+## 8. Stack
 
 | Dependência | Papel |
 |---|---|
@@ -262,7 +317,7 @@ Spotless (formatação automática) e Error Prone (detecção de bugs em compila
 
 ---
 
-## 8. Configuração
+## 9. Configuração
 
 Toda configuração vem de variável de ambiente, lida uma vez no boot para um
 record `Configuracao`. Nenhum valor sensível é versionado.
@@ -281,7 +336,7 @@ distinção, cada ajuste em assinatura de comando custa uma hora de espera.
 
 ---
 
-## 9. Empacotamento e deploy
+## 10. Empacotamento e deploy
 
 Fat jar via maven-shade dentro de `Dockerfile` multi-stage:
 
@@ -316,7 +371,7 @@ recuperação até o último segundo.
 
 ---
 
-## 10. Integração contínua
+## 11. Integração contínua
 
 GitHub Actions em repositório privado, executando `./mvnw verify` a cada push e
 pull request. O build quebra em falha de teste, violação de arquitetura
