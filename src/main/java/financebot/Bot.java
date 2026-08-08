@@ -32,6 +32,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public class Bot extends ListenerAdapter {
 
@@ -61,6 +62,7 @@ public class Bot extends ListenerAdapter {
             s.execute("PRAGMA busy_timeout=5000");
         }
         Financas.criarTabelas(conexao);
+        Financas.normalizarCategorias(conexao);
 
         // DIRECT_MESSAGES não é privilegiada, e em DM o conteúdo da mensagem vem
         // preenchido sem precisar da intent de conteúdo.
@@ -387,7 +389,9 @@ public class Bot extends ListenerAdapter {
 
     /** Vários lançamentos numa tacada, tanto por /lancar quanto por texto solto na DM. */
     private Resposta lote(String usuario, String texto, LocalDate hoje) throws SQLException {
-        List<Entrada.Item> itens = Entrada.lista(texto);
+        // As categorias existentes permitem reconhecer nomes com espaço sem exigir aspas.
+        List<Entrada.Item> itens = Entrada.lista(texto,
+                Set.copyOf(Financas.caminhos(conexao, usuario, null, "", 200)));
 
         if (itens.size() == 1) {
             Entrada.Item item = itens.get(0);
