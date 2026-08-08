@@ -52,7 +52,7 @@ class VisualTest {
                 new Financas.Resumo(0, 0, List.of(), List.of()),
                 new Financas.Resumo(0, 0, List.of(), List.of()), HOJE);
 
-        assertTrue(embed.getDescription().contains("/gasto"));
+        assertTrue(embed.getDescription().contains("50 mercado"));   // ensina em vez de tabular
     }
 
     @Test
@@ -169,7 +169,8 @@ class VisualTest {
         String d = Visual.registro(-500_000, "Alimentação", null, HOJE, 1, 0, 8_000, null)
                 .getDescription();
 
-        assertTrue(d.contains("acima do normal"));
+        assertTrue(d.contains("acima do de sempre"));
+        assertTrue(d.contains("R$ 80,00"));      // mostra a média de referência
     }
 
     @Test

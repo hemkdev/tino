@@ -80,7 +80,7 @@ final class Visual {
         boolean gasto = centavos < 0;
         EmbedBuilder e = new EmbedBuilder()
                 .setColor(gasto ? VERMELHO : VERDE)
-                .setAuthor(gasto ? "Gasto registrado" : "Ganho registrado")
+                .setAuthor(gasto ? "Anotado!" : "Entrou!")
                 .setDescription("## %s\n%s %s".formatted(
                         Dinheiro.formatar(Math.abs(centavos)), emoji(categoria), categoria))
                 .setFooter("#%d · %s".formatted(id, data.format(DIA_MES)));
@@ -89,17 +89,17 @@ final class Visual {
             e.appendDescription("\n_" + descricao + "_");
         }
         if (acumulado > 0) {
-            e.appendDescription("\n\n**%s** %s no mês".formatted(
-                    Dinheiro.formatar(acumulado), gasto ? "gastos" : "ganhos"));
+            e.appendDescription("\n\nJá %s **%s** aqui no mês".formatted(
+                    gasto ? "são" : "entraram", Dinheiro.formatar(acumulado)));
         }
         // Só alerta com histórico suficiente: um valor 5x acima do normal costuma
         // ser dedo gordo (5000 no lugar de 50,00).
         if (tipico > 0 && Math.abs(centavos) > tipico * 5) {
-            e.appendDescription("\n⚠️ bem acima do normal aqui (média %s) — confira, ou use Desfazer"
+            e.appendDescription("\n⚠️ bem acima do de sempre por aqui (média %s) — confere aí, ou é só desfazer"
                     .formatted(Dinheiro.formatar(tipico)));
         }
         if (categoriaNova != null) {
-            e.appendDescription("\n💡 criei a categoria **%s** — parecida com **%s**, renomeie se foi engano"
+            e.appendDescription("\n💡 criei **%s** — parece com **%s**, renomeie se foi engano"
                     .formatted(categoria, categoriaNova));
         }
         return e.build();
@@ -108,7 +108,7 @@ final class Visual {
     static MessageEmbed lote(List<String> linhas, long totalGasto, long totalGanho) {
         return new EmbedBuilder()
                 .setColor(totalGasto > totalGanho ? VERMELHO : VERDE)
-                .setAuthor("%d lançamentos registrados".formatted(linhas.size()))
+                .setAuthor("Anotei %d de uma vez!".formatted(linhas.size()))
                 .setDescription(String.join("\n", linhas))
                 .setFooter("gastos %s · ganhos %s · veja em /lancamentos".formatted(
                         Dinheiro.formatar(totalGasto), Dinheiro.formatar(totalGanho)))
@@ -120,6 +120,7 @@ final class Visual {
     static MessageEmbed resumo(Financas.Periodo p, Financas.Resumo atual, Financas.Resumo anterior,
                                LocalDate hoje) {
         String titulo = switch (p.unidade()) {
+            case DAYS -> "Resumo de hoje";
             case WEEKS -> "Resumo da semana";
             case YEARS -> "Resumo do ano";
             default -> "Resumo do mês";
@@ -129,7 +130,7 @@ final class Visual {
             return new EmbedBuilder()
                     .setColor(CINZA)
                     .setTitle("📊 " + titulo)
-                    .setDescription("Nenhum lançamento por aqui ainda.\nComece com `/gasto` ou `/ganho`.")
+                    .setDescription("Nada por aqui ainda.\nManda um `50 mercado` que eu anoto.")
                     .setFooter(intervalo(p))
                     .build();
         }
@@ -204,7 +205,7 @@ final class Visual {
             return new EmbedBuilder()
                     .setColor(CINZA)
                     .setTitle("🧾 Lançamentos")
-                    .setDescription("Nada registrado neste período.")
+                    .setDescription("Nenhum lançamento nesse período.")
                     .setFooter(intervalo(p))
                     .build();
         }
@@ -361,6 +362,30 @@ final class Visual {
 
     private static String aspas(String valor) {
         return valor == null ? "" : '"' + valor.replace("\"", "\"\"") + '"';
+    }
+
+    // --------------------------------------------------------- boas-vindas
+
+    static MessageEmbed boasVindas() {
+        return new EmbedBuilder()
+                .setColor(VERDE)
+                .setTitle("👋 Oi! Bora organizar essa grana?")
+                .setDescription("""
+                        Me manda o que você gastou e eu anoto. Assim, sem comando:
+                        ```
+                        50 mercado
+                        50 mercado 07/08 pão e leite
+                        +3000 salário
+                        50 mercado, 30 uber, 12 café
+                        ```
+                        Depois é só perguntar: **quanto gastei esse mês?**, \
+                        **resumo da semana**, **extrato de hoje**.""")
+                .addField("Já deixei prontas",
+                        "🍽️ Alimentação · 🚗 Transporte · 🏠 Moradia · 💊 Saúde\n"
+                                + "🎮 Lazer · 📚 Educação · 📦 Outros\n"
+                                + "💰 Salário · 💼 Freelance · 📈 Investimentos", false)
+                .setFooter("digite ajuda quando quiser ver tudo que eu faço")
+                .build();
     }
 
     // ----------------------------------------------------------------- ajuda
