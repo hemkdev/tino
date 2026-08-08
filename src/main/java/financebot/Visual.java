@@ -369,7 +369,7 @@ final class Visual {
     static MessageEmbed boasVindas() {
         return new EmbedBuilder()
                 .setColor(VERDE)
-                .setTitle("👋 Oi! Bora organizar essa grana?")
+                .setTitle("👋 Oi, eu sou o Tino!")
                 .setDescription("""
                         Me manda o que você gastou e eu anoto. Assim, sem comando:
                         ```
@@ -393,7 +393,7 @@ final class Visual {
     static MessageEmbed ajuda() {
         return new EmbedBuilder()
                 .setColor(AZUL)
-                .setTitle("💡 Como usar")
+                .setTitle("💡 Como falar comigo")
                 .setDescription("""
                         Na conversa comigo, é só digitar — sem barra:
                         ```
