@@ -1,3 +1,5 @@
+<img src="docs/marca/avatar.png" width="120" align="right" alt="">
+
 # finance-bot
 
 Bot de Discord para controle financeiro pessoal, em Java. Registre gastos e
