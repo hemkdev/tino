@@ -1,0 +1,36 @@
+# Segredos e configuração local
+.env
+.env.*
+*.properties.local
+
+# Banco de dados local
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+dados/
+
+# Build
+target/
+build/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
