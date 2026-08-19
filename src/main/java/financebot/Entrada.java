@@ -90,7 +90,7 @@ final class Entrada {
             throw new IllegalArgumentException(EXEMPLO);
         }
         List<Item> itens = new ArrayList<>();
-        for (String parte : texto.split(",")) {
+        for (String parte : texto.split("(?<!\\d),|,(?!\\d)")) {
             if (!parte.isBlank()) {
                 itens.add(item(parte, conhecidas));
             }

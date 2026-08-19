@@ -190,6 +190,26 @@ class EntradaTest {
     }
 
     @Test
+    void virgulaNaoSeparaDecimal() {
+        List<Entrada.Item> itens = Entrada.lista("50 mercado, 1.234,56 uber,300 salario");
+
+        assertEquals(3, itens.size());
+        assertEquals("uber", itens.get(1).categoria());
+        assertEquals(123456, itens.get(1).centavos());
+        assertEquals(30000, itens.get(2).centavos());
+    }
+
+    // Limitação conhecida, categoria terminada em dígito
+    // com virgula e valor do próximo lançamento é tratado como decimal
+    @Test
+    void virgulaNaoSeparaCategoriaTerminadaEmDigito() {
+        List<Entrada.Item> itens = Entrada.lista("50 posto24,30 uber");
+
+        assertEquals(1, itens.size());
+        assertEquals("posto24,30", itens.get(0).categoria());
+    }
+
+    @Test
     void cadaItemTemSuaPropriaData() {
         List<Entrada.Item> itens = Entrada.lista("50 mercado 05/08, 30 uber 06/08 corrida");
 
