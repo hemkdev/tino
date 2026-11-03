@@ -41,6 +41,26 @@ class DinheiroTest {
     }
 
     @Test
+    void pontoSemVirgulaEhMilhar() {
+        assertEquals(150000, Dinheiro.paraCentavos("1.500"));
+        assertEquals(100000000, Dinheiro.paraCentavos("1.000.000"));
+        assertEquals(150, Dinheiro.paraCentavos("1.5"));
+        assertEquals(123456, Dinheiro.paraCentavos("1.234.56"));
+        assertEquals(150000, Dinheiro.paraCentavos("1500."));
+    }
+
+    @Test
+    void quatroCasasAposPontoEhErro() {
+        assertThrows(IllegalArgumentException.class, () -> Dinheiro.paraCentavos("1.5000"));
+    }
+
+    @Test
+    void valorGiganteViraErroDeValidacao() {
+        assertThrows(IllegalArgumentException.class, () -> Dinheiro.paraCentavos("99999999999999999999999"));
+        assertThrows(IllegalArgumentException.class, () -> Dinheiro.paraCentavos("1e30"));
+    }
+
+    @Test
     void formataEmReais() {
         assertEquals("R$ 1.234,56", Dinheiro.formatar(123456));
         assertEquals("R$ 0,50", Dinheiro.formatar(50));

@@ -237,6 +237,27 @@ class EntradaTest {
     }
 
     @Test
+    void aspasVaziasDeixamCategoriaNula() {
+        Entrada.Item item = Entrada.item("50 \"\" 07/08");
+
+        assertNull(item.categoria());
+        assertEquals("07/08", item.data());
+    }
+
+    @Test
+    void aspasVaziasDepoisDaCategoriaNaoDerrubam() {
+        Entrada.Item item = Entrada.item("50 mercado \"\" pão");
+
+        assertNull(item.data());
+        assertEquals("pão", item.descricao());
+    }
+
+    @Test
+    void sinalSemValorEhErroDeValidacao() {
+        assertThrows(IllegalArgumentException.class, () -> Entrada.lista("50 mercado, +"));
+    }
+
+    @Test
     void reconheceOQueParecelancamento() {
         assertTrue(Entrada.pareceLancamento("50 mercado"));
         assertTrue(Entrada.pareceLancamento("+3000 salário"));
@@ -273,6 +294,19 @@ class EntradaTest {
         assertEquals("semana", Entrada.consulta("resumo da semana").periodo());
         assertEquals("ano", Entrada.consulta("quanto gastei esse ano").periodo());
         assertEquals("mes", Entrada.consulta("resumo").periodo());   // padrão
+    }
+
+    @Test
+    void periodoMaisCurtoGanhaQuandoHaMaisDeUm() {
+        assertEquals("dia", Entrada.consulta("resumo de hoje e do mes").periodo());
+        assertEquals("semana", Entrada.consulta("resumo da semana desse ano").periodo());
+        assertEquals("mes", Entrada.consulta("resumo do mes desse ano").periodo());
+    }
+
+    @Test
+    void empateDeGatilhoTemVencedorFixo() {
+        // "listar" e "gastos" têm o mesmo tamanho; vence o tipo declarado primeiro
+        assertEquals("resumo", Entrada.consulta("listar gastos").tipo());
     }
 
     @Test

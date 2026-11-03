@@ -114,6 +114,9 @@ final class Entrada {
         }
 
         List<String> campos = campos(resto);
+        if (campos.isEmpty()) {
+            throw new IllegalArgumentException(EXEMPLO);
+        }
         long centavos = Dinheiro.paraCentavos(campos.get(0));   // lança com mensagem própria
 
         int i = 1;
@@ -127,7 +130,7 @@ final class Entrada {
                 // "Alimentação > Mercado" ocupa três campos; o ">" costura os pedaços.
                 StringBuilder caminho = new StringBuilder(campos.get(i++));
                 while (i < campos.size() && (campos.get(i).startsWith(">")
-                        || caminho.charAt(caminho.length() - 1) == '>')) {
+                        || caminho.toString().endsWith(">"))) {
                     caminho.append(' ').append(campos.get(i++));
                 }
                 categoria = caminho.toString();
@@ -136,7 +139,10 @@ final class Entrada {
 
         // Começa com dígito, é data; começa com letra, já é a descrição.
         String data = null;
-        if (i < campos.size() && Character.isDigit(campos.get(i).charAt(0))) {
+        if (i < campos.size() && campos.get(i).isEmpty()) {
+            i++;   // aspas vazias: campo ausente
+        }
+        if (i < campos.size() && !campos.get(i).isEmpty() && Character.isDigit(campos.get(i).charAt(0))) {
             data = campos.get(i++);
         }
 
@@ -192,20 +198,22 @@ final class Entrada {
     /** O que a pessoa quis ver, quando escreveu em vez de usar um comando. */
     record Consulta(String tipo, String periodo) {}
 
-    private static final Map<String, List<String>> GATILHOS = Map.of(
-            "resumo", List.of("resumo", "quanto gastei", "quanto ganhei", "gastos", "gasto total",
-                    "saldo", "balanco", "relatorio", "como estou", "situacao"),
-            "lancamentos", List.of("lancamentos", "lancamento", "extrato", "ultimos", "listar",
-                    "historico", "o que gastei"),
-            "categorias", List.of("categorias", "categoria"),
-            "fixos", List.of("fixos", "fixo", "recorrentes", "assinaturas"),
-            "ajuda", List.of("ajuda", "help", "como usa", "como funciona", "comandos", "o que faz"));
+    // Listas de entradas, e não Map.of, porque a ordem desempata: Map.of itera em ordem aleatória.
+    private static final List<Map.Entry<String, List<String>>> GATILHOS = List.of(
+            Map.entry("resumo", List.of("resumo", "quanto gastei", "quanto ganhei", "gastos", "gasto total",
+                    "saldo", "balanco", "relatorio", "como estou", "situacao")),
+            Map.entry("lancamentos", List.of("lancamentos", "lancamento", "extrato", "ultimos", "listar",
+                    "historico", "o que gastei")),
+            Map.entry("categorias", List.of("categorias", "categoria")),
+            Map.entry("fixos", List.of("fixos", "fixo", "recorrentes", "assinaturas")),
+            Map.entry("ajuda", List.of("ajuda", "help", "como usa", "como funciona", "comandos", "o que faz")));
 
-    private static final Map<String, List<String>> PERIODOS = Map.of(
-            "dia", List.of("hoje", "de hoje", "do dia"),
-            "semana", List.of("semana"),
-            "ano", List.of("ano"),
-            "mes", List.of("mes"));
+    /** Do mais curto para o mais longo: com dois períodos na frase, o mais específico vence. */
+    private static final List<Map.Entry<String, List<String>>> PERIODOS = List.of(
+            Map.entry("dia", List.of("hoje", "de hoje", "do dia")),
+            Map.entry("semana", List.of("semana")),
+            Map.entry("mes", List.of("mes")),
+            Map.entry("ano", List.of("ano")));
 
     /**
      * Reconhece pedidos escritos em texto: "resumo", "quanto gastei essa semana",
@@ -220,7 +228,7 @@ final class Entrada {
 
         String tipo = null;
         int melhor = -1;
-        for (var entrada : GATILHOS.entrySet()) {
+        for (var entrada : GATILHOS) {
             for (String gatilho : entrada.getValue()) {
                 // O gatilho mais longo ganha: "quanto gastei" vence "gastos".
                 if (contemPalavra(limpo, gatilho) && gatilho.length() > melhor) {
@@ -233,15 +241,14 @@ final class Entrada {
             return null;
         }
 
-        String periodo = "mes";
-        for (var entrada : PERIODOS.entrySet()) {
+        for (var entrada : PERIODOS) {
             for (String palavra : entrada.getValue()) {
                 if (contemPalavra(limpo, palavra)) {
-                    periodo = entrada.getKey();
+                    return new Consulta(tipo, entrada.getKey());
                 }
             }
         }
-        return new Consulta(tipo, periodo);
+        return new Consulta(tipo, "mes");
     }
 
     /** Evita que "categoria" case dentro de outra palavra maior. */

@@ -25,6 +25,16 @@ final class Dinheiro {
         // Com vírgula, ela é o separador decimal e o ponto é milhar: "1.234,56" → "1234.56"
         if (limpo.indexOf(',') >= 0) {
             limpo = limpo.replace(".", "").replace(',', '.');
+        } else if (limpo.indexOf('.') >= 0) {
+            // Sem vírgula, as casas depois do último ponto decidem: 3 é milhar ("1.500"), até 2 é decimal
+            int ultimo = limpo.lastIndexOf('.');
+            int casas = limpo.length() - ultimo - 1;
+            if (casas > 3) {
+                throw new IllegalArgumentException("valor inválido: " + texto);
+            }
+            limpo = casas == 3
+                    ? limpo.replace(".", "")
+                    : limpo.substring(0, ultimo).replace(".", "") + limpo.substring(ultimo);
         }
 
         BigDecimal valor;
@@ -38,11 +48,11 @@ final class Dinheiro {
             throw new IllegalArgumentException("o valor deve ser maior que zero");
         }
 
-        long centavos = valor.setScale(2, RoundingMode.HALF_UP).movePointRight(2).longValueExact();
-        if (centavos > LIMITE) {
+        BigDecimal centavos = valor.setScale(2, RoundingMode.HALF_UP).movePointRight(2);
+        if (centavos.compareTo(BigDecimal.valueOf(LIMITE)) > 0) {
             throw new IllegalArgumentException("valor acima do limite de " + formatar(LIMITE));
         }
-        return centavos;
+        return centavos.longValueExact();
     }
 
     static String formatar(long centavos) {
