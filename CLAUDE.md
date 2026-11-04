@@ -23,7 +23,7 @@ Destino:
    `Evento` selado com alerta que pergunta antes de gravar, o personagem na miniatura das
    respostas, falas novas, marca e README.~~
 5. Traços com dado novo (planta, ausência, impulso, vigiar categoria), em branch própria.
-   Regras em `docs/PERSONAGEM.md`.
+   Regras em `docs/personagem.md`.
 6. Adicionar os canais novos sobre esse núcleo.
 
 ## Estrutura
@@ -40,8 +40,9 @@ texto livre e chama a `Entrada`, porque lançar por texto é caso de uso de todo
 canal (DM, site, MCP). Canal que precise interpretar um campo solto (valor,
 data) usa `Entrada` ou `Dinheiro`, nunca `Financas`.
 
-Documentação: `docs/` é pública e versionada (`ARQUITETURA.md`, `PERSONAGEM.md`,
-`PRIVACIDADE.md`, `marca/`). `local/` fica fora do git: plano de trabalho,
+Documentação: `docs/` é pública e versionada (`banco.md`, `decisoes.md`,
+`personagem.md`, `PRIVACIDADE.md`, `marca/`). `PRIVACIDADE.md` fica em maiúscula porque a URL
+pode estar cadastrada no Developer Portal. `local/` fica fora do git: plano de trabalho,
 brief e o pacote do personagem até a branch dele.
 
 ## Bugs conhecidos
@@ -79,7 +80,7 @@ Os cinco bugs do parser foram corrigidos, cada um coberto por teste:
   diretrizes de marca da Discord e porque vai a outros canais. Sério com o dinheiro, gentil com a pessoa; nunca cobra. Os estados
   devem nascer de eventos de domínio emitidos por `Tino`; cada canal os traduz. Hoje só o
   alerta vem de um `Evento`; sucesso, dormindo e erro ainda são decididos no `Visual`.
-  Detalhes em `docs/PERSONAGEM.md`.
+  Detalhes em `docs/personagem.md`.
 
 ## Decisões em aberto
 
@@ -91,7 +92,7 @@ Os cinco bugs do parser foram corrigidos, cada um coberto por teste:
 ## Regras do projeto
 
 - O teste que falha vem antes da correção.
-- Valem as regras inegociáveis de `docs/ARQUITETURA.md` (toda query filtra por
+- Valem as regras inegociáveis de `docs/banco.md` (toda query filtra por
   `usuario`, centavos em inteiro, data futura rejeitada, nada de token ou dado
   financeiro em log).
 - Funcionalidade nova começa por uma spec em `local/specs/` (fora do git), aprovada
@@ -99,15 +100,15 @@ Os cinco bugs do parser foram corrigidos, cada um coberto por teste:
 
 ## Commits, branches e PRs
 
-Tudo em PT-BR: código, commits, título e corpo de PR.
+Mesma organização do `hemkdev/racha-api`, em PT-BR.
 
-- **Commits:** Conventional Commits, minúsculo, imperativo, sem ponto, até 72
-  caracteres. Atômicos: um por responsabilidade (`feat`, `fix`, `refactor`, `docs`,
-  `chore`, `test` separados). Trailer `Co-Authored-By` do Claude quando houve IA.
-- **Branches:** `hemkdev/<nome>`, a partir da `main`. Só a `main` é permanente: no merge,
-  apagar a branch local e a remota.
-- **PR:** título no mesmo formato de commit. Corpo enxuto, em prosa, sem cabeçalhos nem
-  listas: um parágrafo com o problema e o que muda (e por quê, quando não é óbvio), e,
-  se precisar, um segundo com testes e o que ficou de fora. Modelo: os PRs do
-  `hemkdev/racha-api`.
-- **Merge:** merge commit, sem squash, para preservar os commits atômicos.
+- **Branches:** `<tipo>/<assunto>` a partir da `main` (`feat/tracos`, `fix/alerta`,
+  `docs/readme-e-docs`). Exceção à regra global `hemkdev/<nome>`: aqui o tipo da branch bate
+  com o título do PR. Só a `main` é permanente.
+- **Commits na branch:** Conventional Commits, minúsculo, imperativo, sem ponto, até 72
+  caracteres, atômicos, com trailer `Co-Authored-By` do Claude quando houve IA.
+- **PR:** título no formato de commit; ele vira o commit da `main`. Corpo enxuto, em prosa, sem
+  cabeçalhos nem listas: o problema e o que muda (e por quê, quando não é óbvio) e, se precisar,
+  um segundo parágrafo com testes e o que ficou de fora.
+- **Merge:** squash and merge, o único habilitado no repo. Na `main` fica um commit por PR
+  (`feat: ... (#N)`) com a lista dos commits da branch no corpo, e a branch é apagada sozinha.
