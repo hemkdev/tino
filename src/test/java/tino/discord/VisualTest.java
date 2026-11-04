@@ -1,5 +1,10 @@
-package financebot;
+package tino.discord;
 
+import tino.nucleo.Lancamento;
+import tino.nucleo.Linha;
+import tino.nucleo.Periodo;
+import tino.nucleo.Resumo;
+import tino.nucleo.Tino;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import org.junit.jupiter.api.Test;
 
@@ -15,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class VisualTest {
 
-    private static final Financas.Periodo AGOSTO = new Financas.Periodo(
+    private static final Periodo AGOSTO = new Periodo(
             LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31), ChronoUnit.MONTHS);
     private static final LocalDate HOJE = LocalDate.of(2026, 8, 7);
 
@@ -49,19 +54,19 @@ class VisualTest {
     @Test
     void resumoVazioOrientaEmVezDeMostrarTabela() {
         MessageEmbed embed = Visual.resumo(AGOSTO,
-                new Financas.Resumo(0, 0, List.of(), List.of()),
-                new Financas.Resumo(0, 0, List.of(), List.of()), null);
+                new Resumo(0, 0, List.of(), List.of()),
+                new Resumo(0, 0, List.of(), List.of()), null);
 
         assertTrue(embed.getDescription().contains("50 mercado"));   // ensina em vez de tabular
     }
 
     @Test
     void resumoMostraCategoriasESaldo() {
-        Financas.Resumo atual = new Financas.Resumo(300_000, 80_000,
-                List.of(new Financas.Linha("Alimentação", 50_000),
-                        new Financas.Linha("Transporte", 30_000)),
-                List.of(new Financas.Linha("Salário", 300_000)));
-        Financas.Resumo anterior = new Financas.Resumo(0, 40_000, List.of(), List.of());
+        Resumo atual = new Resumo(300_000, 80_000,
+                List.of(new Linha("Alimentação", 50_000),
+                        new Linha("Transporte", 30_000)),
+                List.of(new Linha("Salário", 300_000)));
+        Resumo anterior = new Resumo(0, 40_000, List.of(), List.of());
 
         MessageEmbed embed = Visual.resumo(AGOSTO, atual, anterior, null);
 
@@ -92,7 +97,7 @@ class VisualTest {
     @Test
     void listaDeLancamentosMostraIdESinal() {
         MessageEmbed embed = Visual.lancamentos(AGOSTO, List.of(
-                new Financas.Lancamento(18, LocalDate.of(2026, 8, 7), -5_000,
+                new Lancamento(18, LocalDate.of(2026, 8, 7), -5_000,
                         "Alimentação > Mercado", "pão")), 0, false);
 
         assertTrue(embed.getDescription().contains("#18"));
@@ -102,8 +107,8 @@ class VisualTest {
 
     @Test
     void listaMostraAFaixaDaPaginaAtual() {
-        List<Financas.Lancamento> cheia = java.util.stream.IntStream.range(0, 20)
-                .mapToObj(i -> new Financas.Lancamento(i, LocalDate.of(2026, 8, 7), -100, "Lazer", null))
+        List<Lancamento> cheia = java.util.stream.IntStream.range(0, 20)
+                .mapToObj(i -> new Lancamento(i, LocalDate.of(2026, 8, 7), -100, "Lazer", null))
                 .toList();
 
         assertTrue(Visual.lancamentos(AGOSTO, cheia, 20, true).getFooter().getText()
@@ -112,8 +117,8 @@ class VisualTest {
 
     @Test
     void resumoMostraRitmoQuandoHa() {
-        Financas.Resumo atual = new Financas.Resumo(0, 70_000,
-                List.of(new Financas.Linha("Lazer", 70_000)), List.of());
+        Resumo atual = new Resumo(0, 70_000,
+                List.of(new Linha("Lazer", 70_000)), List.of());
 
         MessageEmbed embed = Visual.resumo(AGOSTO, atual, atual, new Tino.Ritmo(10_000, 310_000));
 
@@ -205,5 +210,16 @@ class VisualTest {
 
         assertTrue(embed.getFields().get(0).getValue().contains("↳ Mercado"));
         assertTrue(embed.getFields().get(1).getValue().contains("Salário"));
+    }
+
+    @Test
+    void variacaoSemBaseDeComparacaoNaoDividePorZero() {
+        assertEquals("—", Visual.variacao(1_000, 0));
+    }
+
+    @Test
+    void variacaoMostraSinal() {
+        assertEquals("+50,0%", Visual.variacao(150, 100));
+        assertEquals("-25,0%", Visual.variacao(75, 100));
     }
 }

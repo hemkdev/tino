@@ -1,4 +1,4 @@
-package financebot;
+package tino.nucleo;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -20,38 +20,40 @@ import java.util.Set;
  * categoria. Interpretar texto digitado é papel de {@link Entrada}, chamada por
  * quem recebe texto livre.
  */
-final class Tino {
+public final class Tino {
 
-    static final String PADRAO = "Outros";
-    static final int LIMITE_PAGINA = 20;
+    public static final String PADRAO = "Outros";
+    public static final int LIMITE_PAGINA = 20;
+    public static final int MAX_RAIZ = Financas.MAX_RAIZ;
+    public static final int MAX_SUB = Financas.MAX_SUB;
 
     // ponytail: uma conexão só, serializada pelos métodos synchronized. Um app pessoal
     // não tem concorrência que justifique pool; se tiver, trocar por HikariCP.
     private final Connection conexao;
 
     /** Um lançamento gravado, com o contexto que ajuda a pegar erro de digitação. */
-    record Registro(long id, long centavos, String categoria, String descricao, LocalDate data,
+    public record Registro(long id, long centavos, String categoria, String descricao, LocalDate data,
                     long acumulado, long tipico, String parecida) {}
 
-    record Pagina(Financas.Periodo periodo, List<Financas.Lancamento> itens, int offset,
+    public record Pagina(Periodo periodo, List<Lancamento> itens, int offset,
                   boolean temProxima) {}
 
     /** {@code ritmo} é nulo quando não há projeção a fazer. */
-    record Comparativo(Financas.Periodo periodo, Financas.Resumo atual, Financas.Resumo anterior,
+    public record Comparativo(Periodo periodo, Resumo atual, Resumo anterior,
                        Ritmo ritmo) {}
 
-    record Ritmo(long mediaDiaria, long projecao) {}
+    public record Ritmo(long mediaDiaria, long projecao) {}
 
-    record Exportacao(Financas.Periodo periodo, int quantidade, String csv) {}
+    public record Exportacao(Periodo periodo, int quantidade, String csv) {}
 
-    record Categorias(List<String> gastos, int raizGasto, int subGasto,
+    public record Categorias(List<String> gastos, int raizGasto, int subGasto,
                       List<String> ganhos, int raizGanho, int subGanho) {}
 
     Tino(Connection conexao) {
         this.conexao = conexao;
     }
 
-    static Tino abrir(String caminho) throws SQLException {
+    public static Tino abrir(String caminho) throws SQLException {
         Connection conexao = DriverManager.getConnection("jdbc:sqlite:" + caminho);
         try (Statement s = conexao.createStatement()) {
             s.execute("PRAGMA journal_mode=WAL");
@@ -70,24 +72,24 @@ final class Tino {
      * @param provedor "discord", "google", "telegram"...
      * @param externo  id da pessoa naquele provedor
      */
-    synchronized String conta(String provedor, String externo) throws SQLException {
+    public synchronized String conta(String provedor, String externo) throws SQLException {
         return Financas.conta(conexao, provedor, externo);
     }
 
     /** Liga outra identidade (ex.: Google) à conta de quem já está logado. */
-    synchronized void vincular(String conta, String provedor, String externo) throws SQLException {
+    public synchronized void vincular(String conta, String provedor, String externo) throws SQLException {
         Financas.vincular(conexao, conta, provedor, externo);
     }
 
     /** @return true na primeira vez, para o canal poder dar as boas-vindas. */
-    synchronized boolean preparar(String usuario) throws SQLException {
+    public synchronized boolean preparar(String usuario) throws SQLException {
         return Financas.prepararUsuario(conexao, usuario);
     }
 
     // ------------------------------------------------------------ lançamentos
 
     /** Valor negativo é gasto, positivo é ganho. Categoria nula vai para Outros. */
-    synchronized Registro registrar(String usuario, long centavos, String categoria,
+    public synchronized Registro registrar(String usuario, long centavos, String categoria,
                                     String descricao, LocalDate data) throws SQLException {
         String nome = categoria == null || categoria.isBlank() ? PADRAO : categoria;
         boolean ganho = centavos > 0;
@@ -102,13 +104,13 @@ final class Tino {
         long tipico = Financas.valorTipico(conexao, usuario, categoriaId, data);
         long id = Financas.registrar(conexao, usuario, centavos, categoriaId, descricao, data);
         long acumulado = Financas.totalDaCategoria(conexao, usuario, categoriaId,
-                Financas.Periodo.de("mes", data), ganho);
+                Periodo.de("mes", data), ganho);
 
         return new Registro(id, centavos, nome, descricao, data, acumulado, tipico, parecida);
     }
 
     /** Texto livre: "50 mercado, 30 uber, +3000 salário". */
-    synchronized List<Registro> lancar(String usuario, String texto, LocalDate hoje)
+    public synchronized List<Registro> lancar(String usuario, String texto, LocalDate hoje)
             throws SQLException {
         // As categorias existentes permitem reconhecer nomes com espaço sem exigir aspas.
         List<Entrada.Item> itens = Entrada.lista(texto,
@@ -123,9 +125,9 @@ final class Tino {
     }
 
     /** Mantém o sinal original: edição não transforma gasto em ganho. */
-    synchronized Registro editar(String usuario, long id, long centavos, String categoria,
+    public synchronized Registro editar(String usuario, long id, long centavos, String categoria,
                                  String descricao, LocalDate data) throws SQLException {
-        Financas.Lancamento antes = Financas.buscar(conexao, usuario, id).orElseThrow(
+        Lancamento antes = Financas.buscar(conexao, usuario, id).orElseThrow(
                 () -> new IllegalArgumentException("esse lançamento já não existe"));
         boolean ganho = antes.centavos() > 0;
         long comSinal = ganho ? centavos : -centavos;
@@ -136,20 +138,20 @@ final class Tino {
         return new Registro(id, comSinal, categoria, descricao, data, 0, 0, null);
     }
 
-    synchronized Optional<Financas.Lancamento> buscar(String usuario, long id) throws SQLException {
+    public synchronized Optional<Lancamento> buscar(String usuario, long id) throws SQLException {
         return Financas.buscar(conexao, usuario, id);
     }
 
-    synchronized boolean remover(String usuario, long id) throws SQLException {
+    public synchronized boolean remover(String usuario, long id) throws SQLException {
         return Financas.remover(conexao, usuario, id);
     }
 
     // -------------------------------------------------------------- consultas
 
-    synchronized Comparativo resumo(String usuario, String tipoPeriodo, LocalDate hoje)
+    public synchronized Comparativo resumo(String usuario, String tipoPeriodo, LocalDate hoje)
             throws SQLException {
-        Financas.Periodo periodo = Financas.Periodo.de(tipoPeriodo, hoje);
-        Financas.Resumo atual = Financas.resumo(conexao, usuario, periodo);
+        Periodo periodo = Periodo.de(tipoPeriodo, hoje);
+        Resumo atual = Financas.resumo(conexao, usuario, periodo);
         return new Comparativo(periodo, atual,
                 Financas.resumo(conexao, usuario, periodo.anterior()),
                 ritmo(periodo, atual.despesas(), hoje));
@@ -159,7 +161,7 @@ final class Tino {
      * Média diária e projeção até o fim do período. Só faz sentido com o período
      * em andamento — período encerrado já tem o total real, não uma estimativa.
      */
-    static Ritmo ritmo(Financas.Periodo p, long despesas, LocalDate hoje) {
+    public static Ritmo ritmo(Periodo p, long despesas, LocalDate hoje) {
         if (despesas <= 0 || hoje.isBefore(p.inicio()) || hoje.isAfter(p.fim())) {
             return null;
         }
@@ -172,29 +174,29 @@ final class Tino {
         return new Ritmo(media, media * totais);
     }
 
-    synchronized Pagina pagina(String usuario, String tipoPeriodo, int offset, LocalDate hoje)
+    public synchronized Pagina pagina(String usuario, String tipoPeriodo, int offset, LocalDate hoje)
             throws SQLException {
-        Financas.Periodo periodo = Financas.Periodo.de(tipoPeriodo, hoje);
+        Periodo periodo = Periodo.de(tipoPeriodo, hoje);
         // Busca um a mais do que cabe: se vier, existe página seguinte.
-        List<Financas.Lancamento> lista =
+        List<Lancamento> lista =
                 Financas.lancamentos(conexao, usuario, periodo, LIMITE_PAGINA + 1, offset);
         boolean temProxima = lista.size() > LIMITE_PAGINA;
         return new Pagina(periodo, temProxima ? lista.subList(0, LIMITE_PAGINA) : lista,
                 offset, temProxima);
     }
 
-    synchronized Exportacao exportar(String usuario, String tipoPeriodo, LocalDate hoje)
+    public synchronized Exportacao exportar(String usuario, String tipoPeriodo, LocalDate hoje)
             throws SQLException {
-        Financas.Periodo periodo = Financas.Periodo.de(tipoPeriodo, hoje);
-        List<Financas.Lancamento> lista =
+        Periodo periodo = Periodo.de(tipoPeriodo, hoje);
+        List<Lancamento> lista =
                 Financas.lancamentos(conexao, usuario, periodo, Integer.MAX_VALUE, 0);
         return new Exportacao(periodo, lista.size(), csv(lista));
     }
 
     /** Uma linha por lançamento, com cabeçalho. Ponto decimal para abrir em planilha. */
-    static String csv(List<Financas.Lancamento> lista) {
+    public static String csv(List<Lancamento> lista) {
         StringBuilder sb = new StringBuilder("id,data,valor,categoria,descricao\n");
-        for (Financas.Lancamento l : lista) {
+        for (Lancamento l : lista) {
             sb.append("%d,%s,%s,%s,%s%n".formatted(
                     l.id(),
                     l.data(),
@@ -212,12 +214,12 @@ final class Tino {
     // ------------------------------------------------------------- categorias
 
     /** Tipo nulo traz gasto e ganho juntos. */
-    synchronized List<String> caminhos(String usuario, String tipo, String filtro, int limite)
+    public synchronized List<String> caminhos(String usuario, Tipo tipo, String filtro, int limite)
             throws SQLException {
-        return Financas.caminhos(conexao, usuario, tipo, filtro, limite);
+        return Financas.caminhos(conexao, usuario, tipo == null ? null : tipo.codigo(), filtro, limite);
     }
 
-    synchronized Categorias categorias(String usuario) throws SQLException {
+    public synchronized Categorias categorias(String usuario) throws SQLException {
         return new Categorias(
                 Financas.caminhos(conexao, usuario, Financas.GASTO, "", 200),
                 Financas.contar(conexao, usuario, Financas.GASTO, true),
@@ -227,39 +229,39 @@ final class Tino {
                 Financas.contar(conexao, usuario, Financas.GANHO, false));
     }
 
-    synchronized void criarCategoria(String usuario, String caminho, String tipo) throws SQLException {
-        Financas.categoriaId(conexao, usuario, caminho, tipo);
+    public synchronized void criarCategoria(String usuario, String caminho, Tipo tipo) throws SQLException {
+        Financas.categoriaId(conexao, usuario, caminho, tipo.codigo());
     }
 
-    synchronized void renomearCategoria(String usuario, String caminho, String novo, String tipo)
+    public synchronized void renomearCategoria(String usuario, String caminho, String novo, Tipo tipo)
             throws SQLException {
-        Financas.renomear(conexao, usuario, caminho, novo, tipo);
+        Financas.renomear(conexao, usuario, caminho, novo, tipo.codigo());
     }
 
-    synchronized void excluirCategoria(String usuario, String caminho, String tipo)
+    public synchronized void excluirCategoria(String usuario, String caminho, Tipo tipo)
             throws SQLException {
-        Financas.excluir(conexao, usuario, caminho, tipo);
+        Financas.excluir(conexao, usuario, caminho, tipo.codigo());
     }
 
     // ------------------------------------------------------------------ fixos
 
-    synchronized List<Financas.Recorrente> fixos(String usuario) throws SQLException {
+    public synchronized List<Recorrente> fixos(String usuario) throws SQLException {
         return Financas.recorrentes(conexao, usuario);
     }
 
     /** Valor negativo é gasto, positivo é ganho. */
-    synchronized void adicionarFixo(String usuario, long centavos, String categoria,
+    public synchronized void adicionarFixo(String usuario, long centavos, String categoria,
                                     String descricao) throws SQLException {
         long categoriaId = Financas.categoriaId(conexao, usuario, categoria,
                 centavos > 0 ? Financas.GANHO : Financas.GASTO);
         Financas.adicionarRecorrente(conexao, usuario, centavos, categoriaId, descricao);
     }
 
-    synchronized boolean removerFixo(String usuario, long id) throws SQLException {
+    public synchronized boolean removerFixo(String usuario, long id) throws SQLException {
         return Financas.removerRecorrente(conexao, usuario, id);
     }
 
-    synchronized int lancarFixos(String usuario, LocalDate data) throws SQLException {
+    public synchronized int lancarFixos(String usuario, LocalDate data) throws SQLException {
         return Financas.lancarRecorrentes(conexao, usuario, data);
     }
 }

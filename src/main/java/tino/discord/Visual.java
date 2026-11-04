@@ -1,5 +1,12 @@
-package financebot;
+package tino.discord;
 
+import tino.nucleo.Dinheiro;
+import tino.nucleo.Lancamento;
+import tino.nucleo.Linha;
+import tino.nucleo.Periodo;
+import tino.nucleo.Recorrente;
+import tino.nucleo.Resumo;
+import tino.nucleo.Tino;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
@@ -64,7 +71,7 @@ final class Visual {
         return "▰".repeat(cheios) + "▱".repeat(LARGURA_BARRA - cheios);
     }
 
-    private static String intervalo(Financas.Periodo p) {
+    private static String intervalo(Periodo p) {
         return "%s a %s".formatted(p.inicio().format(DIA_MES), p.fim().format(DIA_MES));
     }
 
@@ -134,7 +141,7 @@ final class Visual {
 
     // ---------------------------------------------------------------- resumo
 
-    static MessageEmbed resumo(Financas.Periodo p, Financas.Resumo atual, Financas.Resumo anterior,
+    static MessageEmbed resumo(Periodo p, Resumo atual, Resumo anterior,
                                Tino.Ritmo ritmo) {
         String titulo = switch (p.unidade()) {
             case DAYS -> "Resumo de hoje";
@@ -172,8 +179,8 @@ final class Visual {
                 .addField("Saldo", comSinal(atual.saldo()), true)
                 .setFooter("%s · gastos %s · ganhos %s (vs. período anterior)".formatted(
                         intervalo(p),
-                        Financas.variacao(atual.despesas(), anterior.despesas()),
-                        Financas.variacao(atual.ganhos(), anterior.ganhos())));
+                        variacao(atual.despesas(), anterior.despesas()),
+                        variacao(atual.ganhos(), anterior.ganhos())));
 
         if (ritmo != null) {
             e.addField("Ritmo", "%s por dia · projeção de **%s** até %s".formatted(
@@ -183,10 +190,19 @@ final class Visual {
         return e.build();
     }
 
-    private static String listaCategorias(List<Financas.Linha> linhas, long total) {
+    /** Variação percentual. Sem base de comparação devolve travessão, nunca divisão por zero. */
+    static String variacao(long atual, long anterior) {
+        if (anterior == 0) {
+            return "—";
+        }
+        double pct = (atual - anterior) * 100.0 / Math.abs(anterior);
+        return String.format(Locale.of("pt", "BR"), "%+.1f%%", pct);
+    }
+
+    private static String listaCategorias(List<Linha> linhas, long total) {
         long maior = linhas.get(0).total();
         StringBuilder sb = new StringBuilder();
-        for (Financas.Linha linha : linhas) {
+        for (Linha linha : linhas) {
             sb.append(String.format(BR, "%s `%s` **%s** · %s · %.1f%%%n",
                     emoji(linha.categoria()),
                     barra(linha.total(), maior),
@@ -199,7 +215,7 @@ final class Visual {
 
     // ----------------------------------------------------------- lançamentos
 
-    static MessageEmbed lancamentos(Financas.Periodo p, List<Financas.Lancamento> lista,
+    static MessageEmbed lancamentos(Periodo p, List<Lancamento> lista,
                                     int offset, boolean temProxima) {
         if (lista.isEmpty()) {
             return new EmbedBuilder()
@@ -211,7 +227,7 @@ final class Visual {
         }
 
         StringBuilder sb = new StringBuilder();
-        for (Financas.Lancamento l : lista) {
+        for (Lancamento l : lista) {
             sb.append("`#%d` `%s` %s **%s** · %s".formatted(
                     l.id(),
                     l.data().format(DIA_MES),
@@ -250,7 +266,7 @@ final class Visual {
     }
 
     /** Modal já preenchido: campo em branco apaga a descrição, campo intocado mantém. */
-    static Modal edicao(String usuario, Financas.Lancamento l) {
+    static Modal edicao(String usuario, Lancamento l) {
         return Modal.create("edicao:%s:%d".formatted(usuario, l.id()), "Editar #" + l.id())
                 .addComponents(
                         linha("valor", "Valor", Dinheiro.formatar(Math.abs(l.centavos()))
@@ -288,10 +304,10 @@ final class Visual {
                 .setColor(AZUL)
                 .setTitle("🗂️ Categorias")
                 .addField("Gastos · %d/%d principais, %d/%d sub".formatted(
-                                c.raizGasto(), Financas.MAX_RAIZ, c.subGasto(), Financas.MAX_SUB),
+                                c.raizGasto(), Tino.MAX_RAIZ, c.subGasto(), Tino.MAX_SUB),
                         arvore(c.gastos()), false)
                 .addField("Ganhos · %d/%d principais, %d/%d sub".formatted(
-                                c.raizGanho(), Financas.MAX_RAIZ, c.subGanho(), Financas.MAX_SUB),
+                                c.raizGanho(), Tino.MAX_RAIZ, c.subGanho(), Tino.MAX_SUB),
                         arvore(c.ganhos()), false)
                 .setFooter("gerencie com /categoria criar, renomear ou excluir")
                 .build();
@@ -315,7 +331,7 @@ final class Visual {
 
     // ----------------------------------------------------------- recorrentes
 
-    static MessageEmbed recorrentes(List<Financas.Recorrente> lista) {
+    static MessageEmbed recorrentes(List<Recorrente> lista) {
         if (lista.isEmpty()) {
             return new EmbedBuilder()
                     .setColor(CINZA)
@@ -326,7 +342,7 @@ final class Visual {
         }
         StringBuilder sb = new StringBuilder();
         long total = 0;
-        for (Financas.Recorrente r : lista) {
+        for (Recorrente r : lista) {
             total += r.centavos();
             sb.append("`#%d` %s **%s** · %s".formatted(
                     r.id(), emoji(r.categoria()), comSinal(r.centavos()), r.categoria()));

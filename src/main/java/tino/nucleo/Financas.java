@@ -1,13 +1,11 @@
-package financebot;
+package tino.nucleo;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -28,49 +26,6 @@ final class Financas {
             "Salário", "Freelance", "Investimentos", "Outros");
 
     private Financas() {}
-
-    // ---------------------------------------------------------------- modelo
-
-    record Linha(String categoria, long total) {}
-
-    record Lancamento(long id, LocalDate data, long centavos, String categoria, String descricao) {}
-
-    record Resumo(long ganhos, long despesas, List<Linha> porDespesa, List<Linha> porGanho) {
-        long saldo() {
-            return ganhos - despesas;
-        }
-
-        boolean vazio() {
-            return ganhos == 0 && despesas == 0;
-        }
-    }
-
-    record Periodo(LocalDate inicio, LocalDate fim, ChronoUnit unidade) {
-
-        static Periodo de(String tipo, LocalDate hoje) {
-            return switch (tipo) {
-                case "dia" -> new Periodo(hoje, hoje, ChronoUnit.DAYS);
-                case "semana" -> new Periodo(
-                        hoje.with(DayOfWeek.MONDAY), hoje.with(DayOfWeek.SUNDAY), ChronoUnit.WEEKS);
-                case "ano" -> new Periodo(
-                        hoje.withDayOfYear(1), hoje.withDayOfYear(hoje.lengthOfYear()), ChronoUnit.YEARS);
-                default -> new Periodo(
-                        hoje.withDayOfMonth(1), hoje.withDayOfMonth(hoje.lengthOfMonth()), ChronoUnit.MONTHS);
-            };
-        }
-
-        Periodo anterior() {
-            return switch (unidade) {
-                case DAYS -> new Periodo(inicio.minusDays(1), fim.minusDays(1), unidade);
-                case WEEKS -> new Periodo(inicio.minusWeeks(1), fim.minusWeeks(1), unidade);
-                case YEARS -> new Periodo(inicio.minusYears(1), fim.minusYears(1), unidade);
-                default -> {
-                    LocalDate i = inicio.minusMonths(1);
-                    yield new Periodo(i, i.withDayOfMonth(i.lengthOfMonth()), unidade);
-                }
-            };
-        }
-    }
 
     // ------------------------------------------------------------- estrutura
 
@@ -590,7 +545,6 @@ final class Financas {
 
     // ----------------------------------------------------------- recorrentes
 
-    record Recorrente(long id, long centavos, String categoria, String descricao) {}
 
     static long adicionarRecorrente(Connection c, String usuario, long centavos, long categoriaId,
                                     String descricao) throws SQLException {
@@ -791,12 +745,4 @@ final class Financas {
         return anterior[b.length()];
     }
 
-    /** Variação percentual. Sem base de comparação devolve travessão, nunca divisão por zero. */
-    static String variacao(long atual, long anterior) {
-        if (anterior == 0) {
-            return "—";
-        }
-        double pct = (atual - anterior) * 100.0 / Math.abs(anterior);
-        return String.format(Locale.of("pt", "BR"), "%+.1f%%", pct);
-    }
 }

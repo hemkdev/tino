@@ -1,4 +1,4 @@
-package financebot;
+package tino.nucleo;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,7 +21,7 @@ class TinoTest {
     private static final String EU = "111";
     private static final String OUTRO = "222";
     private static final LocalDate HOJE = LocalDate.of(2026, 8, 7);
-    private static final Financas.Periodo AGOSTO = new Financas.Periodo(
+    private static final Periodo AGOSTO = new Periodo(
             LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31), ChronoUnit.MONTHS);
 
     private Tino tino;
@@ -152,7 +152,7 @@ class TinoTest {
     @Test
     void csvTemCabecalhoEValorComPontoDecimal() {
         String csv = Tino.csv(List.of(
-                new Financas.Lancamento(1, HOJE, -123_456, "Moradia", "aluguel")));
+                new Lancamento(1, HOJE, -123_456, "Moradia", "aluguel")));
 
         assertTrue(csv.startsWith("id,data,valor,categoria,descricao\n"));
         assertTrue(csv.contains("-1234.56"));
@@ -162,7 +162,7 @@ class TinoTest {
     @Test
     void csvEscapaAspasDaDescricao() {
         String csv = Tino.csv(List.of(
-                new Financas.Lancamento(1, HOJE, -100, "Lazer", "show do \"grupo\"")));
+                new Lancamento(1, HOJE, -100, "Lazer", "show do \"grupo\"")));
 
         assertTrue(csv.contains("\"show do \"\"grupo\"\"\""));
     }
@@ -170,7 +170,7 @@ class TinoTest {
     @Test
     void csvNaoQuebraComDescricaoNula() {
         assertTrue(Tino.csv(List.of(
-                new Financas.Lancamento(1, HOJE, -100, "Lazer", null))).endsWith(",\n"));
+                new Lancamento(1, HOJE, -100, "Lazer", null))).endsWith(",\n"));
     }
 
     @Test

@@ -1,5 +1,10 @@
-package financebot;
+package tino.discord;
 
+import tino.nucleo.Dinheiro;
+import tino.nucleo.Entrada;
+import tino.nucleo.Lancamento;
+import tino.nucleo.Tino;
+import tino.nucleo.Tipo;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;
@@ -47,7 +52,7 @@ public class Bot extends ListenerAdapter {
             System.exit(1);
         }
 
-        Tino tino = Tino.abrir(System.getenv().getOrDefault("BANCO_CAMINHO", "financebot.db"));
+        Tino tino = Tino.abrir(System.getenv().getOrDefault("BANCO_CAMINHO", "tino.db"));
 
         // DIRECT_MESSAGES não é privilegiada, e em DM o conteúdo da mensagem vem
         // preenchido sem precisar da intent de conteúdo.
@@ -139,8 +144,8 @@ public class Bot extends ListenerAdapter {
 
     private static OptionData tipoObrigatorio() {
         return new OptionData(OptionType.STRING, "tipo", "Categoria de gasto ou de ganho", true)
-                .addChoice("gasto", Financas.GASTO)
-                .addChoice("ganho", Financas.GANHO);
+                .addChoice("gasto", "gasto")
+                .addChoice("ganho", "ganho");
     }
 
     // ------------------------------------------------------------- interação
@@ -253,7 +258,7 @@ public class Bot extends ListenerAdapter {
                             .queue();
                 }
                 case "editar" -> {
-                    Optional<Financas.Lancamento> alvo = tino.buscar(partes[1], Long.parseLong(partes[2]));
+                    Optional<Lancamento> alvo = tino.buscar(partes[1], Long.parseLong(partes[2]));
                     if (alvo.isEmpty()) {
                         evento.reply("Esse lançamento já não existe.").setEphemeral(true).queue();
                         return;
@@ -315,14 +320,14 @@ public class Bot extends ListenerAdapter {
     }
 
     /** Em /gasto e /ganho o tipo vem do comando; em /categoria, da opção escolhida. */
-    private static String tipoDoContexto(CommandAutoCompleteInteractionEvent evento) {
+    private static Tipo tipoDoContexto(CommandAutoCompleteInteractionEvent evento) {
         return switch (evento.getName()) {
-            case "gasto" -> Financas.GASTO;
-            case "ganho" -> Financas.GANHO;
+            case "gasto" -> Tipo.GASTO;
+            case "ganho" -> Tipo.GANHO;
             case "fixo" -> null;   // fixo aceita os dois
             default -> {
                 OptionMapping tipo = evento.getOption("tipo");
-                yield tipo == null ? null : tipo.getAsString();
+                yield tipo == null ? null : Tipo.de(tipo.getAsString());
             }
         };
     }
@@ -389,12 +394,12 @@ public class Bot extends ListenerAdapter {
 
     private MessageEmbed categoria(SlashCommandInteractionEvent evento, String usuario)
             throws SQLException {
-        String tipo = texto(evento, "tipo");
+        Tipo tipo = Tipo.de(texto(evento, "tipo"));
         return switch (evento.getSubcommandName()) {
             case "criar" -> {
                 String nome = evento.getOption("nome").getAsString();
                 tino.criarCategoria(usuario, nome, tipo);
-                yield Visual.ok("Categoria de %s criada: **%s**".formatted(tipo, nome));
+                yield Visual.ok("Categoria de %s criada: **%s**".formatted(tipo.name().toLowerCase(), nome));
             }
             case "renomear" -> {
                 String antes = evento.getOption("categoria").getAsString();

@@ -1,4 +1,4 @@
-package financebot;
+package tino.nucleo;
 
 import org.junit.jupiter.api.Test;
 
