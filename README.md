@@ -104,13 +104,14 @@ conversa privada.
 
 ```
 Bot.java        JDA: comandos, botões, modal e mensagens
+Tino.java       núcleo: o que o bot faz, sem saber o canal (inclui CSV e projeção)
 Financas.java   esquema, consultas e regras
-Visual.java     embeds, botões e CSV
+Visual.java     embeds, botões e modal
 Entrada.java    interpreta "50 mercado 07/08 pão"
 Dinheiro.java   converte e formata valores em reais
 ```
 
-Cinco arquivos, sem framework e sem ORM. Os testes rodam contra SQLite em
+Seis arquivos, sem framework e sem ORM. Os testes rodam contra SQLite em
 memória, então a suíte inteira leva menos de um segundo.
 
 ```bash
@@ -126,7 +127,7 @@ especificação — e foi deliberadamente reduzido ao que está aqui quando fico
 claro que a estrutura era maior que o problema. Esses commits continuam no
 histórico.
 
-Decisões e escopo em [`docs/PLANO.md`](docs/PLANO.md).
+Organização do código, banco e regras em [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
 
 ## Licença
 

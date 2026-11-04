@@ -2,49 +2,92 @@
 
 ## Contexto do projeto
 
-Bot de finanças em Java, sem framework e sem ORM, propositalmente pequeno o
-bastante para caber inteiro na cabeça. Serve como bancada de treino e como
-vitrine — o código é material de estudo, não só entrega.
+Finanças pessoais em Java, sem framework e sem ORM. Começou como bot de Discord
+e bancada de estudo. Agora é produto próprio: o objetivo é ser usável de
+verdade, com mais de um canal de entrada e de visualização.
 
-Bugs conhecidos, na ordem do roadmap (`~/Downloads/roadmap.md`, bloco 6):
+Destino:
 
-1. Vírgula no valor: `Entrada.lista()` faz `split(",")` antes de parsear, e a
-   vírgula é o separador decimal. Atinge DM e `/lancar`.
-2. `1.500` vira R$ 1,50: ponto só é tratado como milhar quando há vírgula.
-   Atinge `/gasto`. Decisão de produto, não só de código.
-3. Aspas vazias derrubam: `50 "" 07/08` → `charAt(-1)` →
-   `StringIndexOutOfBoundsException`.
-4. `longValueExact()` lança `ArithmeticException` não capturada.
-5. Período não determinístico em `consulta()`: itera `Map.of()` sem ordem e o
-   último vence.
+- **Discord**: canal atual (DM e slash commands).
+- **Site**: lançar e visualizar dados.
+- **Conector MCP**: para um modelo de linguagem ler e lançar.
+- **VPS**: tudo rodando fora da máquina pessoal, com disco persistente.
 
-Regra do projeto: o teste que falha vem antes da correção.
+## Ordem de trabalho
 
-## Instruções de mentoria
+1. ~~Corrigir os bugs conhecidos abaixo antes do redesenho.~~
+2. ~~Separar o núcleo (regras, consultas, dinheiro) do que é específico do Discord.~~
+3. ~~Terminar o desacoplamento: `parseData` sai do `Bot` para a `Entrada`; `csv()` e a conta do
+   `ritmo()` saem do `Visual` para o núcleo.~~ O `Bot` ainda usa as constantes
+   `Financas.GASTO`/`GANHO`; resolve no rename para pacotes.
+4. Personagem, na branch `hemkdev/personagem`: o Tino vira o Broto, com estados e traços
+   ligados a eventos do núcleo. Junto entram o rename `financebot` → `tino` com pacotes
+   `tino.nucleo` e `tino.discord`, a marca nova e o README novo.
+5. Adicionar os canais novos sobre esse núcleo.
 
-Ao trabalhar com essa pessoa neste projeto ou qualquer tópico técnico, siga estas regras:
+## Estrutura
 
-1. **Nunca dê a resposta pronta.** Faça perguntas que guiem o aluno a chegar na resposta sozinho. Se ele travar, quebre o problema em partes menores — mas não resolva por ele.
+- **Núcleo, sem JDA:** `Tino` (casos de uso, dono da conexão e do lock),
+  `Financas` (SQL), `Entrada` (texto livre), `Dinheiro`.
+- **Canal Discord:** `Bot` (eventos JDA) e `Visual` (embeds, botões, modal).
 
-2. **Não aceite respostas vagas.** Se o aluno disser algo genérico tipo "mapear errado" ou "fazer da melhor forma", peça pra ele ser concreto. O que exatamente? Como? Por quê?
+Canal novo chama `Tino`, nunca `Financas` direto: o lock de escrita mora nos
+métodos `synchronized` de `Tino`. `Tino` recebe valores já interpretados
+(centavos com sinal, `LocalDate`), com uma exceção: `Tino.lancar` recebe o
+texto livre e chama a `Entrada`, porque lançar por texto é caso de uso de todo
+canal (DM, site, MCP). Canal que precise interpretar um campo solto (valor,
+data) usa `Entrada` ou `Dinheiro`, nunca `Financas`.
 
-3. **Desafie toda decisão.** Quando o aluno tomar uma decisão técnica, pergunte o porquê. Se ele não souber justificar, ele não decidiu — chutou. Mostre o tradeoff.
+Documentação: `docs/` é pública e versionada (`ARQUITETURA.md`,
+`PRIVACIDADE.md`, `marca/`). `local/` fica fora do git: plano de trabalho,
+brief e o pacote do personagem até a branch dele.
 
-4. **Não deixe ele fugir pra zona de conforto.** O gap medido é vocabulário de
-   linguagem: ele lê semântica de domínio ("isso separa os lançamentos") em vez
-   de semântica de código ("`split` devolve `String[]`, e `charAt` num índice
-   negativo lança"). A fuga é delegar a escrita para a IA e ficar só no papel de
-   testar a aplicação. Bloqueie: quem escreve o código aqui é ele. Você não
-   entrega diff pronto neste repositório — nem "só pra ele conferir".
+## Bugs conhecidos
 
-5. **Aponte quando ele resolve no nível errado.** Se o problema está numa camada e ele tenta resolver em outra, mostre a diferença e pare ele. Todo problema tem o lugar certo pra ser resolvido — force ele a atacar na raiz, não no sintoma.
+Os cinco bugs do parser foram corrigidos, cada um coberto por teste:
 
-6. **Cobre consistência.** Se ele tomou uma decisão antes e agora contradiz sem perceber, mostre. Se ele repete o mesmo erro, diga que é a segunda ou terceira vez.
+1. Vírgula no valor (`3395e67`).
+2. `1.500` virava R$ 1,50. Regra no ramo sem vírgula de `Dinheiro.paraCentavos`:
+   3 casas depois do último ponto é milhar, até 2 é decimal, 4 ou mais é erro.
+3. Aspas vazias (`50 "" 07/08`) derrubavam `Entrada.item`; também `+` sem valor.
+4. Valor gigante lançava `ArithmeticException` em `longValueExact()`; agora o
+   limite é checado antes.
+5. Período e gatilho em `consulta()` dependiam da ordem aleatória de `Map.of()`.
+   Agora são listas ordenadas: o período mais curto vence, e o empate de
+   gatilho vai para o tipo declarado primeiro.
 
-7. **Reconheça progresso real.** Quando ele chegar numa resposta boa por raciocínio próprio, diga. Mas não elogie resposta mediocre só pra ser simpático.
+## Decisões tomadas
 
-8. **Não suavize.** Seja direto sem ser grosso. "Tá errado e aqui tá o porquê" é melhor que "interessante, mas talvez a gente pudesse considerar..."
+- **Identidade:** conta própria do Tino com várias identidades. Tabelas `conta`
+  e `identidade (provedor, externo) → conta_id`. A coluna `usuario` das tabelas
+  de dados guarda o id da conta, não mais o id do Discord. Cada canal resolve a
+  conta com `Tino.conta(provedor, externo)` na entrada; `Tino.vincular` liga uma
+  identidade nova (Google, Telegram) a uma conta existente. Não existe fusão de
+  duas contas com dados: vincular uma identidade que já pertence a outra conta é
+  recusado.
+- **Migração:** `Financas.migrarParaContas` roda no boot e troca ids do Discord
+  pela conta, de forma idempotente (id de conta é pequeno, snowflake tem 17+
+  dígitos). Botões antigos no histórico do Discord carregam o id do Discord e
+  passam a responder "não é seu".
+- **Processo:** um só para Discord, site e MCP, compartilhando a instância de
+  `Tino` e o lock dela.
+- **Login no site:** OAuth do Discord primeiro; Google e Telegram entram como
+  provedores adicionais pela mesma tabela `identidade`.
+- **Personagem:** criatura própria (o Broto), sem Wumpus, pelas diretrizes de marca da Discord e
+  porque vai a outros canais. Sério com o dinheiro, gentil com a pessoa; nunca cobra. Os estados
+  são eventos de domínio emitidos por `Tino`; cada canal os traduz. Detalhes em
+  `local/personagem/decisoes-personagem.md`.
 
-9. **Force ele a errar antes de pesquisar.** Se ele perguntar a sintaxe de algo, mande ele tentar primeiro. O erro ensina mais que a resposta certa de primeira.
+## Decisões em aberto
 
-10. **Faça ele pensar antes de codar.** Design primeiro, código depois. Modelagem antes de implementação, contrato antes da chamada, estrutura antes do detalhe. Se ele abrir a IDE antes de pensar, pare ele.
+- **Contrato do MCP:** campos estruturados (valor, categoria, data) ou texto
+  livre passado pela `Entrada`.
+- **Público:** só o dono ou pessoas de fora. Define o peso de login e o que
+  `docs/PRIVACIDADE.md` precisa garantir.
+
+## Regras do projeto
+
+- O teste que falha vem antes da correção.
+- Valem as regras inegociáveis de `docs/ARQUITETURA.md` (toda query filtra por
+  `usuario`, centavos em inteiro, data futura rejeitada, nada de token ou dado
+  financeiro em log).

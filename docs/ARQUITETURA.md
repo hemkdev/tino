@@ -1,34 +1,16 @@
-# Tino — plano
+# Tino — arquitetura
 
-Bot de Discord para controle financeiro pessoal. Registrar ganhos e despesas por
-categoria, ver quanto foi gasto em cada uma e como evoluiu de um mês para o
-outro.
+Como o código e o banco estão organizados, e por quê. Comandos e uso estão no
+[README](../README.md).
 
-## Comandos
+## Núcleo e canais
 
-| Comando | O que faz |
-|---|---|
-| `/gasto <valor> [categoria] [descricao] [data]` | Registra despesa. Sem categoria, vai para Outros |
-| `/ganho <valor> [categoria] [descricao] [data]` | Registra receita |
-| `/lancar <texto>` | Vários de uma vez: `50 mercado, 30 uber, +3000 salário` |
-| `/resumo [periodo]` | Por categoria, saldo, variação sobre o período anterior e projeção do mês |
-| `/lancamentos [periodo]` | Lista paginada com os ids |
-| `/exportar [periodo]` | Anexa um CSV |
-| `/remover <id>` | Apaga um lançamento |
-| `/categoria listar\|criar\|renomear\|excluir` | Gerencia categorias |
-| `/fixo listar\|adicionar\|remover\|lancar` | Aluguel e assinaturas, lançados de uma vez |
-| `/ajuda` | Exemplos de uso |
+- **Núcleo, sem JDA:** `Tino` (casos de uso, dono da conexão e do lock de
+  escrita), `Financas` (SQL), `Entrada` (texto livre), `Dinheiro`.
+- **Canal Discord:** `Bot` (eventos JDA) e `Visual` (embeds, botões, modal).
 
-Na conversa privada, texto solto vira lançamento (`50 mercado`) ou consulta
-(`quanto gastei essa semana`, `extrato de hoje`). O que não casa com nenhum dos
-dois é ignorado, para conversa comum não gerar resposta.
-
-Cada registro traz botões de **Desfazer** e **Editar**. O contexto viaja no id do
-botão, então eles continuam funcionando depois de reiniciar o bot, e clique de
-terceiro é recusado.
-
-Categoria vem por autocomplete. Em servidor as respostas são *ephemeral*; em DM
-ficam no histórico, já que a conversa é privada de qualquer forma.
+Canal chama `Tino`, nunca `Financas` direto. Um processo só serve todos os
+canais, compartilhando a mesma instância de `Tino`.
 
 ## Banco
 
@@ -61,7 +43,20 @@ CREATE TABLE IF NOT EXISTS recorrente (
 );
 
 CREATE INDEX IF NOT EXISTS idx_consulta ON lancamento (usuario, data);
+
+CREATE TABLE IF NOT EXISTS conta (id INTEGER PRIMARY KEY);
+
+CREATE TABLE IF NOT EXISTS identidade (
+    provedor TEXT    NOT NULL,                     -- discord | google | telegram
+    externo  TEXT    NOT NULL,                     -- id da pessoa no provedor
+    conta_id INTEGER NOT NULL REFERENCES conta(id),
+    PRIMARY KEY (provedor, externo)
+);
 ```
+
+**`usuario` é o id da conta, não do canal.** Uma conta tem várias identidades:
+quem lança pelo Discord e entra no site pelo Google vê os mesmos dados depois de
+vincular as duas.
 
 **Sinal no valor em vez de coluna `tipo`.** Saldo é `SUM(valor_centavos)`, gasto
 é `SUM` do que for negativo. Elimina uma coluna, um enum e todo o código que
@@ -90,15 +85,18 @@ schema couber nisso.
 
 ```
 Bot.java          main, JDA, registro e roteamento de comandos
+Tino.java         casos de uso independentes de canal; dono da conexão,
+                  do CSV e da projeção do mês
 Financas.java     queries e cálculos; recebe uma Connection
-Visual.java       embeds, botões, modal e CSV
-Entrada.java      interpreta "50 mercado, 30 uber"
+Visual.java       embeds, botões e modal
+Entrada.java      interpreta "50 mercado, 30 uber" e datas digitadas
 Dinheiro.java     converte "1.234,56" ↔ centavos, formata em BRL
 
 FinancasTest.java   contra jdbc:sqlite::memory:
 VisualTest.java
 EntradaTest.java
 DinheiroTest.java
+TinoTest.java
 ```
 
 Sem interface de repositório: existe uma implementação só. Os testes usam SQLite
@@ -113,6 +111,7 @@ determinístico o teste de qualquer regra de período.
 Java 25, JDA, `sqlite-jdbc`, `slf4j-simple`, JUnit 5. Empacotamento com
 maven-shade em jar executável.
 
+
 ## Regras que não são negociáveis
 
 O resto pode ser ajustado durante a implementação; estas não, porque falham
@@ -126,23 +125,3 @@ silenciosamente:
 5. Comparação com período anterior de total zero exibe `—`, nunca divisão por
    zero.
 6. Nada de token ou dado financeiro em log.
-
-## Pendências
-
-**Hospedagem.** O bot roda na máquina pessoal, então só responde enquanto ela
-está ligada — e o link de instalação é público. Candidato natural: uma VPS com
-disco persistente (Oracle Cloud Free Tier atende sem custo), rodando o jar
-direto. Duas restrições que eliminam boa parte das plataformas: o bot mantém
-WebSocket permanente com o gateway, logo não é serverless; e o SQLite é um
-arquivo em disco, logo filesystem efêmero apaga o histórico a cada deploy.
-
-Enquanto isso não acontece, os dados de quem instalar ficam no `financebot.db`
-local.
-
-## Fora de escopo
-
-Orçamento com alerta, filtro por categoria em `/lancamentos`, evolução de uma
-categoria mês a mês, parcelamento, gráficos em imagem, resumo automático
-agendado, Docker e CI.
-
-Cada um entra se e quando incomodar de verdade.
