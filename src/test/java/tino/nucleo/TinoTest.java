@@ -259,4 +259,20 @@ class TinoTest {
         assertInstanceOf(Evento.ForaDoNormal.class, eventos.get(1));
         assertEquals(4, tino.pagina(EU, "mes", 0, HOJE).itens().size());
     }
+
+    @Test
+    void lancarAvisaCategoriaParecida() throws SQLException {
+        assertEquals("Transporte",
+                registrado(tino.lancar(EU, new Pedido(-5_000, "Transprte", null, HOJE))).parecida());
+    }
+
+    @Test
+    void foraDoNormalSemCategoriaFalaDeOutros() throws SQLException {
+        historico(null, -5_000, 3);
+
+        Evento.ForaDoNormal fora = assertInstanceOf(Evento.ForaDoNormal.class,
+                tino.lancar(EU, new Pedido(-500_000, null, null, HOJE)));
+
+        assertEquals(Tino.PADRAO, fora.pedido().categoria());
+    }
 }

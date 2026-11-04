@@ -93,10 +93,16 @@ public final class Tino {
      * {@link Evento.ForaDoNormal} sem gravar nada, para o canal confirmar antes.
      */
     public synchronized Evento lancar(String usuario, Pedido p) throws SQLException {
-        long tipico = Financas.valorTipico(conexao, usuario, categoriaId(usuario, p), p.data());
-        return foraDoNormal(p.centavos(), tipico)
-                ? new Evento.ForaDoNormal(p, tipico)
-                : new Evento.Registrado(registrar(usuario, p));
+        Pedido pedido = new Pedido(p.centavos(), nome(p), p.descricao(), p.data());
+        // Categoria que ainda não existe não tem histórico: grava direto, e o registrar
+        // ainda pode avisar de uma parecida antes de criá-la.
+        if (!existe(usuario, pedido)) {
+            return new Evento.Registrado(registrar(usuario, pedido));
+        }
+        long tipico = Financas.valorTipico(conexao, usuario, categoriaId(usuario, pedido), pedido.data());
+        return foraDoNormal(pedido.centavos(), tipico)
+                ? new Evento.ForaDoNormal(pedido, tipico)
+                : new Evento.Registrado(registrar(usuario, pedido));
     }
 
     /** Texto livre: "50 mercado, 30 uber, +3000 salário". Um evento por item. */
@@ -120,9 +126,9 @@ public final class Tino {
         String tipo = tipo(p);
 
         // Antes de criar: se não existe mas há uma parecida, vale avisar do provável engano.
-        String parecida = Financas.caminhos(conexao, usuario, tipo, nome, 1).isEmpty()
-                ? Financas.parecida(conexao, usuario, nome, tipo).orElse(null)
-                : null;
+        String parecida = existe(usuario, p)
+                ? null
+                : Financas.parecida(conexao, usuario, nome, tipo).orElse(null);
 
         long categoriaId = categoriaId(usuario, p);
         long id = Financas.registrar(conexao, usuario, p.centavos(), categoriaId, p.descricao(), p.data());
@@ -153,10 +159,11 @@ public final class Tino {
         return p.centavos() > 0 ? Financas.GANHO : Financas.GASTO;
     }
 
-    /**
-     * Cria a categoria se ainda não existe. Categoria nova não tem histórico, então
-     * nunca é fora do normal: chamar isto antes de decidir não deixa categoria órfã.
-     */
+    private boolean existe(String usuario, Pedido p) throws SQLException {
+        return !Financas.caminhos(conexao, usuario, tipo(p), nome(p), 1).isEmpty();
+    }
+
+    /** Cria a categoria se ainda não existe. */
     private long categoriaId(String usuario, Pedido p) throws SQLException {
         return Financas.categoriaId(conexao, usuario, nome(p), tipo(p));
     }

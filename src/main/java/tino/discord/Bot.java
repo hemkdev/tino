@@ -35,10 +35,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 /** Canal Discord: traduz eventos do JDA em chamadas ao {@link Tino} e respostas em embed. */
 public class Bot extends ListenerAdapter {
@@ -47,10 +44,7 @@ public class Bot extends ListenerAdapter {
 
     private final Tino tino;
 
-    // ponytail: pedidos à espera de [Tá certo] ficam em memória. Reiniciar o bot os perde
-    // (o botão responde que expirou) e um aviso nunca respondido fica até o próximo boot.
-    private final Map<String, Pedido> pendentes = new ConcurrentHashMap<>();
-    private final AtomicLong proximaChave = new AtomicLong();
+    private final Pendentes pendentes = new Pendentes();
 
     private Bot(Tino tino) {
         this.tino = tino;
@@ -286,10 +280,10 @@ public class Bot extends ListenerAdapter {
                     evento.replyModal(Visual.edicao(partes[1], alvo.get())).queue();
                 }
                 case "confirmar", "corrigir" -> {
-                    Pedido pedido = pendentes.remove(partes[2]);
+                    Pedido pedido = pendentes.retirar(partes[1], partes[2]);
                     if (pedido == null) {
-                        evento.editMessageEmbeds(Visual.aviso("Esse aviso expirou. Manda o lançamento de novo."))
-                                .setComponents().queue();
+                        // Clique duplo ou reinício: não mexe na mensagem, que pode já mostrar o registro.
+                        evento.reply("Esse aviso já foi respondido ou expirou.").setEphemeral(true).queue();
                     } else if (partes[0].equals("confirmar")) {
                         Tino.Registro r = tino.registrar(partes[1], pedido);
                         evento.editMessageEmbeds(Visual.registro(r))
@@ -384,8 +378,7 @@ public class Bot extends ListenerAdapter {
     }
 
     private Resposta perguntar(String usuario, Evento.ForaDoNormal f) {
-        String chave = Long.toString(proximaChave.incrementAndGet(), 36);
-        pendentes.put(chave, f.pedido());
+        String chave = pendentes.guardar(usuario, f.pedido());
         return new Resposta(Visual.foraDoNormal(f), Visual.confirmacao(usuario, chave));
     }
 
@@ -453,7 +446,8 @@ public class Bot extends ListenerAdapter {
 
     private MessageEmbed categoria(SlashCommandInteractionEvent evento, String usuario)
             throws SQLException {
-        Tipo tipo = Tipo.de(texto(evento, "tipo"));
+        String opcao = texto(evento, "tipo");   // "listar" não tem tipo
+        Tipo tipo = opcao == null ? null : Tipo.de(opcao);
         return switch (evento.getSubcommandName()) {
             case "criar" -> {
                 String nome = evento.getOption("nome").getAsString();
