@@ -94,3 +94,20 @@ Os cinco bugs do parser foram corrigidos, cada um coberto por teste:
 - Valem as regras inegociáveis de `docs/ARQUITETURA.md` (toda query filtra por
   `usuario`, centavos em inteiro, data futura rejeitada, nada de token ou dado
   financeiro em log).
+- Funcionalidade nova começa por uma spec em `local/specs/` (fora do git), aprovada
+  antes do código; cada critério de aceite vira um teste que falha antes da implementação.
+
+## Commits, branches e PRs
+
+Tudo em PT-BR: código, commits, título e corpo de PR.
+
+- **Commits:** Conventional Commits, minúsculo, imperativo, sem ponto, até 72
+  caracteres. Atômicos: um por responsabilidade (`feat`, `fix`, `refactor`, `docs`,
+  `chore`, `test` separados). Trailer `Co-Authored-By` do Claude quando houve IA.
+- **Branches:** `hemkdev/<nome>`, a partir da `main`. Só a `main` é permanente: no merge,
+  apagar a branch local e a remota.
+- **PR:** título no mesmo formato de commit. Corpo enxuto, em prosa, sem cabeçalhos nem
+  listas: um parágrafo com o problema e o que muda (e por quê, quando não é óbvio), e,
+  se precisar, um segundo com testes e o que ficou de fora. Modelo: os PRs do
+  `hemkdev/racha-api`.
+- **Merge:** merge commit, sem squash, para preservar os commits atômicos.
