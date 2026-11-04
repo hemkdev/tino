@@ -18,8 +18,7 @@ Destino:
 1. ~~Corrigir os bugs conhecidos abaixo antes do redesenho.~~
 2. ~~Separar o núcleo (regras, consultas, dinheiro) do que é específico do Discord.~~
 3. ~~Terminar o desacoplamento: `parseData` sai do `Bot` para a `Entrada`; `csv()` e a conta do
-   `ritmo()` saem do `Visual` para o núcleo.~~ O `Bot` ainda usa as constantes
-   `Financas.GASTO`/`GANHO`; resolve no rename para pacotes.
+   `ritmo()` saem do `Visual` para o núcleo.~~
 4. Personagem, na branch `hemkdev/personagem`: o Tino vira o Broto, com estados e traços
    ligados a eventos do núcleo. Junto entram o rename `financebot` → `tino` com pacotes
    `tino.nucleo` e `tino.discord`, a marca nova e o README novo.
@@ -27,9 +26,10 @@ Destino:
 
 ## Estrutura
 
-- **Núcleo, sem JDA:** `Tino` (casos de uso, dono da conexão e do lock),
-  `Financas` (SQL), `Entrada` (texto livre), `Dinheiro`.
-- **Canal Discord:** `Bot` (eventos JDA) e `Visual` (embeds, botões, modal).
+- **`tino.nucleo`, sem JDA:** `Tino` (casos de uso, dono da conexão e do lock),
+  `Financas` (SQL, package-private), `Entrada` (texto livre), `Dinheiro`, `Tipo`
+  e os records do domínio (`Periodo`, `Resumo`, `Linha`, `Lancamento`, `Recorrente`).
+- **`tino.discord`:** `Bot` (eventos JDA) e `Visual` (embeds, botões, modal).
 
 Canal novo chama `Tino`, nunca `Financas` direto: o lock de escrita mora nos
 métodos `synchronized` de `Tino`. `Tino` recebe valores já interpretados

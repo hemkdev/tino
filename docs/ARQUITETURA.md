@@ -5,9 +5,9 @@ Como o código e o banco estão organizados, e por quê. Comandos e uso estão n
 
 ## Núcleo e canais
 
-- **Núcleo, sem JDA:** `Tino` (casos de uso, dono da conexão e do lock de
-  escrita), `Financas` (SQL), `Entrada` (texto livre), `Dinheiro`.
-- **Canal Discord:** `Bot` (eventos JDA) e `Visual` (embeds, botões, modal).
+- **`tino.nucleo`, sem JDA:** `Tino` (casos de uso, dono da conexão e do lock
+  de escrita), `Financas` (SQL), `Entrada` (texto livre), `Dinheiro`.
+- **`tino.discord`:** `Bot` (eventos JDA) e `Visual` (embeds, botões, modal).
 
 Canal chama `Tino`, nunca `Financas` direto. Um processo só serve todos os
 canais, compartilhando a mesma instância de `Tino`.
@@ -84,20 +84,24 @@ schema couber nisso.
 ## Arquivos
 
 ```
-Bot.java          main, JDA, registro e roteamento de comandos
-Tino.java         casos de uso independentes de canal; dono da conexão,
-                  do CSV e da projeção do mês
-Financas.java     queries e cálculos; recebe uma Connection
-Visual.java       embeds, botões e modal
-Entrada.java      interpreta "50 mercado, 30 uber" e datas digitadas
-Dinheiro.java     converte "1.234,56" ↔ centavos, formata em BRL
+tino/nucleo/                 regras, consultas e dinheiro; não conhece JDA
+  Tino.java                  API pública: casos de uso, conexão, lock, CSV e projeção
+  Financas.java              SQL; recebe uma Connection. Package-private
+  Entrada.java               interpreta "50 mercado, 30 uber" e datas digitadas
+  Dinheiro.java              converte "1.234,56" ↔ centavos, formata em BRL
+  Tipo.java                  gasto ou ganho
+  Periodo, Resumo, Linha,
+  Lancamento, Recorrente     records do domínio
 
-FinancasTest.java   contra jdbc:sqlite::memory:
-VisualTest.java
-EntradaTest.java
-DinheiroTest.java
-TinoTest.java
+tino/discord/                canal Discord
+  Bot.java                   main, JDA, registro e roteamento de comandos
+  Visual.java                embeds, botões e modal
 ```
+
+Os testes espelham os pacotes e rodam contra `jdbc:sqlite::memory:`.
+
+**O compilador garante a fronteira.** `Financas` não é `public`, então nada fora
+de `tino.nucleo` consegue chamar SQL sem passar pelo `Tino` e pelo lock dele.
 
 Sem interface de repositório: existe uma implementação só. Os testes usam SQLite
 em memória, que abre e roda em milissegundos — não há lentidão para contornar.

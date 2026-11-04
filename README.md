@@ -83,17 +83,17 @@ Precisa de Java 25 e Maven.
 ```bash
 mvn package
 export DISCORD_TOKEN="seu-token"
-java -jar target/finance-bot.jar
+java -jar target/tino.jar
 ```
 
-Os dados ficam num arquivo SQLite (`financebot.db`, ao lado do jar). Para
-backup, `sqlite3 financebot.db ".backup copia.db"`.
+Os dados ficam num arquivo SQLite (`tino.db`, ao lado do jar). Para
+backup, `sqlite3 tino.db ".backup copia.db"`.
 
 | Variável | Obrigatória | Para quê |
 |---|---|---|
 | `DISCORD_TOKEN` | sim | Token do bot |
 | `DISCORD_GUILD_ID` | não | Registra os comandos só nessa guild, o que é imediato. Sem ela, o registro é global — necessário para funcionar na DM |
-| `BANCO_CAMINHO` | não | Onde guardar o banco. Padrão: `financebot.db` |
+| `BANCO_CAMINHO` | não | Onde guardar o banco. Padrão: `tino.db` |
 
 Para criar o seu: [Discord Developer Portal](https://discord.com/developers/applications)
 → nova aplicação → **Bot** → *Reset Token*. Não precisa de nenhuma intent
