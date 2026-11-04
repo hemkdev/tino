@@ -25,7 +25,7 @@ dele, e Telegram, site e um conector MCP são os próximos.
 | anotou | valor fora do normal | não entendeu | registro de madrugada |
 | "Registrado: **R$ 132,40** em Mercado." | "R$ 4.800 em Moradia? Seu normal é 1.800." | "Não achei o valor. Manda assim: `23,50 uber`." | "Hm… anotado. Vai dormir também." |
 
-Cada reação vem de um evento real do domínio, não de enfeite. No alerta, ele
+Cada reação responde a algo que aconteceu de verdade, não é enfeite. No alerta, ele
 pergunta com **[Tá certo]** e **[Corrigir]** e só grava depois da resposta: o
 `5000` digitado no lugar de `50,00` não vira histórico. Estados, regra das falas
 e próximos traços em [`docs/PERSONAGEM.md`](docs/PERSONAGEM.md).
@@ -78,10 +78,10 @@ na categoria principal.
 
 ## Como funciona
 
-Cada registro traz botões de **Desfazer** e **Editar** e mostra o acumulado da
-categoria no mês. O resumo mostra as categorias em barras comparativas, a
-variação sobre o período anterior e a projeção de quanto o mês deve fechar no
-ritmo atual.
+Cada registro avulso traz botões de **Desfazer** e **Editar** e mostra o
+acumulado da categoria no mês; vários de uma vez vêm num resumo com os ids. O
+resumo mostra as categorias em barras comparativas, a variação sobre o período
+anterior e a projeção de quanto o mês deve fechar no ritmo atual.
 
 Categorias são criadas conforme você usa, com limite de 10 principais e 20
 subcategorias para cada lado (gastos e ganhos), que são listas separadas.

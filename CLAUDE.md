@@ -20,8 +20,8 @@ Destino:
 3. ~~Terminar o desacoplamento: `parseData` sai do `Bot` para a `Entrada`; `csv()` e a conta do
    `ritmo()` saem do `Visual` para o núcleo.~~
 4. ~~Personagem, na branch `hemkdev/personagem`: pacotes `tino.nucleo` e `tino.discord`,
-   `Evento` selado com alerta que pergunta antes de gravar, o Broto na miniatura de cada
-   resposta, falas novas, marca e README.~~
+   `Evento` selado com alerta que pergunta antes de gravar, o personagem na miniatura das
+   respostas, falas novas, marca e README.~~
 5. Traços com dado novo (planta, ausência, impulso, vigiar categoria), em branch própria.
    Regras em `docs/PERSONAGEM.md`.
 6. Adicionar os canais novos sobre esse núcleo.
@@ -75,10 +75,11 @@ Os cinco bugs do parser foram corrigidos, cada um coberto por teste:
   `Tino` e o lock dela.
 - **Login no site:** OAuth do Discord primeiro; Google e Telegram entram como
   provedores adicionais pela mesma tabela `identidade`.
-- **Personagem:** criatura própria (o Broto), sem Wumpus, pelas diretrizes de marca da Discord e
-  porque vai a outros canais. Sério com o dinheiro, gentil com a pessoa; nunca cobra. Os estados
-  são eventos de domínio emitidos por `Tino`; cada canal os traduz. Detalhes em
-  `local/personagem/decisoes-personagem.md`.
+- **Personagem:** criatura própria (o Tino, um brotinho com moeda), sem Wumpus, pelas
+  diretrizes de marca da Discord e porque vai a outros canais. Sério com o dinheiro, gentil com a pessoa; nunca cobra. Os estados
+  devem nascer de eventos de domínio emitidos por `Tino`; cada canal os traduz. Hoje só o
+  alerta vem de um `Evento`; sucesso, dormindo e erro ainda são decididos no `Visual`.
+  Detalhes em `docs/PERSONAGEM.md`.
 
 ## Decisões em aberto
 
