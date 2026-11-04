@@ -18,6 +18,7 @@ import net.dv8tion.jda.api.interactions.components.text.TextInputStyle;
 import net.dv8tion.jda.api.interactions.modals.Modal;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -84,7 +85,7 @@ final class Visual {
     // ------------------------------------------------------------- registros
 
     static MessageEmbed registro(long centavos, String categoria, String descricao,
-                                 java.time.LocalDate data, long id,
+                                 LocalDate data, long id,
                                  long acumulado, String categoriaNova) {
         boolean gasto = centavos < 0;
         EmbedBuilder e = new EmbedBuilder()
@@ -92,7 +93,8 @@ final class Visual {
                 .setAuthor(gasto ? "Anotado!" : "Entrou!")
                 .setDescription("## %s\n%s %s".formatted(
                         Dinheiro.formatar(Math.abs(centavos)), emoji(categoria), categoria))
-                .setFooter("#%d · %s".formatted(id, data.format(DIA_MES)));
+                .setFooter("#%d · %s".formatted(id, data.format(DIA_MES)))
+                .setThumbnail(Estado.aoRegistrar(LocalTime.now()).url());
 
         if (descricao != null && !descricao.isBlank()) {
             e.appendDescription("\n_" + descricao + "_");
@@ -118,6 +120,7 @@ final class Visual {
         Pedido p = f.pedido();
         return new EmbedBuilder()
                 .setColor(AMARELO)
+                .setThumbnail(Estado.ALERTA.url())
                 .setDescription("%s em %s? Seu normal é %s.".formatted(
                         Dinheiro.formatar(Math.abs(p.centavos())), p.categoria(),
                         Dinheiro.formatar(f.tipico())))
@@ -146,6 +149,7 @@ final class Visual {
         return new EmbedBuilder()
                 .setColor(totalGasto > totalGanho ? VERMELHO : VERDE)
                 .setAuthor("Anotei %d de uma vez!".formatted(linhas.size()))
+                .setThumbnail(Estado.aoRegistrar(LocalTime.now()).url())
                 .setDescription(String.join("\n", linhas))
                 .setFooter("gastos %s · ganhos %s · veja em /lancamentos".formatted(
                         Dinheiro.formatar(totalGasto), Dinheiro.formatar(totalGanho)))
@@ -378,6 +382,7 @@ final class Visual {
         return new EmbedBuilder()
                 .setColor(VERDE)
                 .setTitle("👋 Oi, eu sou o Tino!")
+                .setThumbnail(Estado.OCIOSO.url())
                 .setDescription("""
                         Me manda o que você gastou e eu anoto. Assim, sem comando:
                         ```
@@ -445,10 +450,12 @@ final class Visual {
     }
 
     static MessageEmbed aviso(String mensagem) {
-        return new EmbedBuilder().setColor(AMARELO).setDescription("⚠️ " + mensagem).build();
+        return new EmbedBuilder().setColor(AMARELO).setThumbnail(Estado.ERRO.url())
+                .setDescription("⚠️ " + mensagem).build();
     }
 
     static MessageEmbed erro(String mensagem) {
-        return new EmbedBuilder().setColor(VERMELHO).setDescription("❌ " + mensagem).build();
+        return new EmbedBuilder().setColor(VERMELHO).setThumbnail(Estado.ERRO.url())
+                .setDescription("❌ " + mensagem).build();
     }
 }

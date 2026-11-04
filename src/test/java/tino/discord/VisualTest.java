@@ -227,4 +227,33 @@ class VisualTest {
         assertEquals("+50,0%", Visual.variacao(150, 100));
         assertEquals("-25,0%", Visual.variacao(75, 100));
     }
+
+    // ------------------------------------------------------------ personagem
+
+    private static String broto(MessageEmbed e) {
+        return e.getThumbnail().getUrl();
+    }
+
+    @Test
+    void registroMostraOTinoComemorandoOuDormindo() {
+        String url = broto(Visual.registro(-5_000, "Lazer", null, HOJE, 1, 0, null));
+        assertTrue(url.endsWith("/sucesso.gif") || url.endsWith("/dormindo.gif"));
+    }
+
+    @Test
+    void foraDoNormalMostraOTinoAlerta() {
+        assertTrue(broto(Visual.foraDoNormal(new Evento.ForaDoNormal(
+                new Pedido(-480_000, "Moradia", null, HOJE), 180_000))).endsWith("/alerta.gif"));
+    }
+
+    @Test
+    void avisoEErroMostramOTinoSemEntender() {
+        assertTrue(broto(Visual.aviso("não entendi")).endsWith("/erro.gif"));
+        assertTrue(broto(Visual.erro("falhou")).endsWith("/erro.gif"));
+    }
+
+    @Test
+    void boasVindasMostraOTinoEsperando() {
+        assertTrue(broto(Visual.boasVindas()).endsWith("/ocioso.gif"));
+    }
 }
