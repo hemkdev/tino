@@ -90,6 +90,8 @@ tino/nucleo/                 regras, consultas e dinheiro; não conhece JDA
   Entrada.java               interpreta "50 mercado, 30 uber" e datas digitadas
   Dinheiro.java              converte "1.234,56" ↔ centavos, formata em BRL
   Tipo.java                  gasto ou ganho
+  Evento.java                o que aconteceu ao lançar: Registrado ou ForaDoNormal
+  Pedido.java                lançamento pedido e ainda não gravado
   Periodo, Resumo, Linha,
   Lancamento, Recorrente     records do domínio
 
@@ -99,6 +101,13 @@ tino/discord/                canal Discord
 ```
 
 Os testes espelham os pacotes e rodam contra `jdbc:sqlite::memory:`.
+
+**Eventos em vez de flags.** `Tino.lancar` devolve um `Evento` (`sealed`): ou
+`Registrado`, ou `ForaDoNormal`, quando o valor passa de 5× a média recente da
+categoria. Nesse caso nada é gravado; o canal pergunta e, confirmado, chama
+`Tino.registrar`. O `switch` de cada canal sobre o `Evento` é conferido pelo
+compilador, então um evento novo não passa despercebido. Erro de digitação
+("não entendi") continua como `IllegalArgumentException`.
 
 **O compilador garante a fronteira.** `Financas` não é `public`, então nada fora
 de `tino.nucleo` consegue chamar SQL sem passar pelo `Tino` e pelo lock dele.
