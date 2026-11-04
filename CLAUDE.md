@@ -19,10 +19,12 @@ Destino:
 2. ~~Separar o núcleo (regras, consultas, dinheiro) do que é específico do Discord.~~
 3. ~~Terminar o desacoplamento: `parseData` sai do `Bot` para a `Entrada`; `csv()` e a conta do
    `ritmo()` saem do `Visual` para o núcleo.~~
-4. Personagem, na branch `hemkdev/personagem`: o Tino vira o Broto, com estados e traços
-   ligados a eventos do núcleo. Junto entram o rename `financebot` → `tino` com pacotes
-   `tino.nucleo` e `tino.discord`, a marca nova e o README novo.
-5. Adicionar os canais novos sobre esse núcleo.
+4. ~~Personagem, na branch `hemkdev/personagem`: pacotes `tino.nucleo` e `tino.discord`,
+   `Evento` selado com alerta que pergunta antes de gravar, o Broto na miniatura de cada
+   resposta, falas novas, marca e README.~~
+5. Traços com dado novo (planta, ausência, impulso, vigiar categoria), em branch própria.
+   Regras em `docs/PERSONAGEM.md`.
+6. Adicionar os canais novos sobre esse núcleo.
 
 ## Estrutura
 
