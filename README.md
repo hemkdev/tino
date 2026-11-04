@@ -1,12 +1,12 @@
-<img src="docs/marca/avatar.png" width="120" align="right" alt="">
+<img src="docs/marca/avatar-animado.gif" width="160" align="right" alt="O Tino, um brotinho azul com uma moeda no colo">
 
 # Tino
 
-Bot de Discord para controle financeiro pessoal, em Java. Registre gastos e
-ganhos por categoria conversando na DM e veja para onde seu dinheiro está indo.
+Finanças pessoais por conversa, em Java. Você escreve o gasto como falaria e o
+Tino anota, categoriza e mostra para onde o dinheiro está indo.
 
-O nome vem de *ter tino* — juízo, discernimento. É o que ele faz: te dá noção de
-para onde o dinheiro está indo, sem planilha e sem cerimônia.
+O nome vem de *ter tino*: juízo, discernimento. Ele é um brotinho que guarda
+moeda, **sério com o dinheiro e gentil com a pessoa**.
 
 ```
 50 mercado
@@ -15,7 +15,20 @@ para onde o dinheiro está indo, sem planilha e sem cerimônia.
 50 mercado, 30 uber, 12 café
 ```
 
-Sem barra, sem formulário. Na conversa privada, é só digitar.
+Sem barra, sem formulário. Hoje o canal é o Discord; o núcleo já não depende
+dele, e Telegram, site e um conector MCP são os próximos.
+
+## O personagem
+
+| <img src="docs/marca/estados/sucesso.gif" width="96"> | <img src="docs/marca/estados/alerta.gif" width="96"> | <img src="docs/marca/estados/erro.gif" width="96"> | <img src="docs/marca/estados/dormindo.gif" width="96"> |
+|:---:|:---:|:---:|:---:|
+| anotou | valor fora do normal | não entendeu | registro de madrugada |
+| "Registrado: **R$ 132,40** em Mercado." | "R$ 4.800 em Moradia? Seu normal é 1.800." | "Não achei o valor. Manda assim: `23,50 uber`." | "Hm… anotado. Vai dormir também." |
+
+Cada reação vem de um evento real do domínio, não de enfeite. No alerta, ele
+pergunta com **[Tá certo]** e **[Corrigir]** e só grava depois da resposta: o
+`5000` digitado no lugar de `50,00` não vira histórico. Estados, regra das falas
+e próximos traços em [`docs/PERSONAGEM.md`](docs/PERSONAGEM.md).
 
 ## Usar
 
@@ -65,16 +78,44 @@ na categoria principal.
 
 ## Como funciona
 
-Cada registro traz botões de **Desfazer** e **Editar**. O resumo mostra as
-categorias em barras comparativas, a variação sobre o período anterior e a
-projeção de quanto o mês deve fechar no ritmo atual.
-
-Ao registrar, o bot mostra o acumulado da categoria no mês e avisa quando o valor
-destoa muito do normal — o erro de digitar `5000` no lugar de `50,00` aparece na
-hora, e o botão de desfazer está logo ali.
+Cada registro traz botões de **Desfazer** e **Editar** e mostra o acumulado da
+categoria no mês. O resumo mostra as categorias em barras comparativas, a
+variação sobre o período anterior e a projeção de quanto o mês deve fechar no
+ritmo atual.
 
 Categorias são criadas conforme você usa, com limite de 10 principais e 20
 subcategorias para cada lado (gastos e ganhos), que são listas separadas.
+
+## Arquitetura
+
+```
+tino/nucleo/    regras, consultas e dinheiro — não conhece JDA
+tino/discord/   o canal Discord: eventos do JDA, embeds e botões
+```
+
+O núcleo expõe uma classe, `Tino`, com os casos de uso. `Financas`, que fala SQL,
+é package-private: nenhum canal consegue gravar sem passar pelo `Tino` e pelo
+lock dele, e quem garante isso é o compilador, não a disciplina.
+
+Lançar devolve um `Evento`, uma `sealed interface`. Cada canal decide como
+mostrar, e o `switch` precisa cobrir todos os casos para compilar:
+
+```java
+return switch (tino.lancar(usuario, pedido)) {
+    case Evento.Registrado(Tino.Registro r) -> registro(usuario, r);
+    case Evento.ForaDoNormal f -> perguntar(usuario, f);
+};
+```
+
+Sem framework e sem ORM: Java 25, JDA, SQLite e JUnit. Os testes rodam contra
+SQLite em memória, e a suíte inteira leva menos de um segundo.
+
+```bash
+mvn test
+```
+
+Banco, regras inegociáveis e o porquê de cada escolha em
+[`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
 
 ## Rodar você mesmo
 
@@ -100,34 +141,27 @@ Para criar o seu: [Discord Developer Portal](https://discord.com/developers/appl
 privilegiada. Em **Installation**, habilite *User Install* para que funcione em
 conversa privada.
 
-## Estrutura
+## Próximos passos
 
-```
-Bot.java        JDA: comandos, botões, modal e mensagens
-Tino.java       núcleo: o que o bot faz, sem saber o canal (inclui CSV e projeção)
-Financas.java   esquema, consultas e regras
-Visual.java     embeds, botões e modal
-Entrada.java    interpreta "50 mercado 07/08 pão"
-Dinheiro.java   converte e formata valores em reais
-```
-
-Seis arquivos, sem framework e sem ORM. Os testes rodam contra SQLite em
-memória, então a suíte inteira leva menos de um segundo.
-
-```bash
-mvn test
-```
+- Traços do personagem que dependem de histórico: a planta que cresce com a
+  constância, a ausência, abraçar e esconder a moeda.
+- Canais novos sobre o mesmo núcleo e a mesma conta: site para lançar e
+  visualizar, Telegram, e um conector MCP para um modelo de linguagem ler e lançar.
+- Rodar fora da máquina pessoal, numa VPS com disco persistente.
 
 ## Sobre a construção
 
-Escrito em par com [Claude Code](https://claude.com/claude-code), da fase de
-levantamento de requisitos até a implementação. O projeto começou com uma
-arquitetura hexagonal completa, com portas, adaptadores e documento de
-especificação — e foi deliberadamente reduzido ao que está aqui quando ficou
-claro que a estrutura era maior que o problema. Esses commits continuam no
-histórico.
+Escrito em par com [Claude Code](https://claude.com/claude-code). A primeira
+versão saiu em agosto de 2026, com uma arquitetura hexagonal completa que foi
+deliberadamente reduzida quando ficou claro que a estrutura era maior que o
+problema. Em outubro o projeto foi retomado parte por parte: bugs do parser
+corrigidos com teste primeiro, o núcleo separado do Discord, contas próprias para
+mais de um canal e o personagem desenhado do zero. Os commits de cada fase
+continuam no histórico.
 
-Organização do código, banco e regras em [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
+Referências de produto: Porquim IA, pelo personagem que dá
+cara às finanças, e [money-flow](https://github.com/guithepc/money-flow), pelo
+bot que lança e pelo painel que mostra.
 
 ## Licença
 

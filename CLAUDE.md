@@ -38,7 +38,7 @@ texto livre e chama a `Entrada`, porque lançar por texto é caso de uso de todo
 canal (DM, site, MCP). Canal que precise interpretar um campo solto (valor,
 data) usa `Entrada` ou `Dinheiro`, nunca `Financas`.
 
-Documentação: `docs/` é pública e versionada (`ARQUITETURA.md`,
+Documentação: `docs/` é pública e versionada (`ARQUITETURA.md`, `PERSONAGEM.md`,
 `PRIVACIDADE.md`, `marca/`). `local/` fica fora do git: plano de trabalho,
 brief e o pacote do personagem até a branch dele.
 
