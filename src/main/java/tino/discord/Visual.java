@@ -1,5 +1,14 @@
-package financebot;
+package tino.discord;
 
+import tino.nucleo.Evento;
+import tino.nucleo.Pedido;
+import tino.nucleo.Dinheiro;
+import tino.nucleo.Lancamento;
+import tino.nucleo.Linha;
+import tino.nucleo.Periodo;
+import tino.nucleo.Recorrente;
+import tino.nucleo.Resumo;
+import tino.nucleo.Tino;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
@@ -9,8 +18,9 @@ import net.dv8tion.jda.api.interactions.components.text.TextInputStyle;
 import net.dv8tion.jda.api.interactions.modals.Modal;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -64,7 +74,7 @@ final class Visual {
         return "▰".repeat(cheios) + "▱".repeat(LARGURA_BARRA - cheios);
     }
 
-    private static String intervalo(Financas.Periodo p) {
+    private static String intervalo(Periodo p) {
         return "%s a %s".formatted(p.inicio().format(DIA_MES), p.fim().format(DIA_MES));
     }
 
@@ -75,15 +85,18 @@ final class Visual {
     // ------------------------------------------------------------- registros
 
     static MessageEmbed registro(long centavos, String categoria, String descricao,
-                                 java.time.LocalDate data, long id,
-                                 long acumulado, long tipico, String categoriaNova) {
+                                 LocalDate data, long id,
+                                 long acumulado, String categoriaNova, LocalTime agora) {
         boolean gasto = centavos < 0;
+        Estado estado = Estado.aoRegistrar(agora);
+        String valor = "**%s** em %s.".formatted(Dinheiro.formatar(Math.abs(centavos)), categoria);
         EmbedBuilder e = new EmbedBuilder()
                 .setColor(gasto ? VERMELHO : VERDE)
-                .setAuthor(gasto ? "Anotado!" : "Entrou!")
-                .setDescription("## %s\n%s %s".formatted(
-                        Dinheiro.formatar(Math.abs(centavos)), emoji(categoria), categoria))
-                .setFooter("#%d · %s".formatted(id, data.format(DIA_MES)));
+                .setDescription(estado == Estado.DORMINDO
+                        ? "Hm… anotado. Vai dormir também.\n" + valor
+                        : "Registrado: " + valor)
+                .setFooter("#%d · %s".formatted(id, data.format(DIA_MES)))
+                .setThumbnail(estado.url());
 
         if (descricao != null && !descricao.isBlank()) {
             e.appendDescription("\n_" + descricao + "_");
@@ -92,23 +105,59 @@ final class Visual {
             e.appendDescription("\n\nJá %s **%s** aqui no mês".formatted(
                     gasto ? "são" : "entraram", Dinheiro.formatar(acumulado)));
         }
-        // Só alerta com histórico suficiente: um valor 5x acima do normal costuma
-        // ser dedo gordo (5000 no lugar de 50,00).
-        if (tipico > 0 && Math.abs(centavos) > tipico * 5) {
-            e.appendDescription("\n⚠️ bem acima do de sempre por aqui (média %s) — confere aí, ou é só desfazer"
-                    .formatted(Dinheiro.formatar(tipico)));
-        }
         if (categoriaNova != null) {
-            e.appendDescription("\n💡 criei **%s** — parece com **%s**, renomeie se foi engano"
+            e.appendDescription("\n💡 Criei a categoria **%s**. Se era **%s**, toque em Editar."
                     .formatted(categoria, categoriaNova));
         }
         return e.build();
     }
 
-    static MessageEmbed lote(List<String> linhas, long totalGasto, long totalGanho) {
+    static MessageEmbed registro(Tino.Registro r) {
+        return registro(r.centavos(), r.categoria(), r.descricao(), r.data(), r.id(),
+                r.acumulado(), r.parecida(), LocalTime.now());
+    }
+
+    /** Pergunta antes de gravar: quase sempre é {@code 5000} digitado no lugar de {@code 50,00}. */
+    static MessageEmbed foraDoNormal(Evento.ForaDoNormal f) {
+        Pedido p = f.pedido();
+        return new EmbedBuilder()
+                .setColor(AMARELO)
+                .setThumbnail(Estado.ALERTA.url())
+                .setDescription("%s em %s? Seu normal é %s.".formatted(
+                        redondo(Math.abs(p.centavos())), p.categoria(),
+                        redondo(f.tipico()).substring("R$ ".length())))
+                .build();
+    }
+
+    /** "R$ 4.800" em vez de "R$ 4.800,00": numa pergunta, os centavos só atrapalham. */
+    private static String redondo(long centavos) {
+        String s = Dinheiro.formatar(centavos);
+        return s.endsWith(",00") ? s.substring(0, s.length() - 3) : s;
+    }
+
+    static ActionRow confirmacao(String usuario, String chave) {
+        return ActionRow.of(
+                Button.primary("confirmar:%s:%s".formatted(usuario, chave), "Tá certo"),
+                Button.secondary("corrigir:%s:%s".formatted(usuario, chave), "Corrigir"));
+    }
+
+    static MessageEmbed lote(List<Tino.Registro> registros) {
+        List<String> linhas = new ArrayList<>();
+        long totalGasto = 0;
+        long totalGanho = 0;
+        for (Tino.Registro r : registros) {
+            if (r.centavos() > 0) {
+                totalGanho += r.centavos();
+            } else {
+                totalGasto -= r.centavos();
+            }
+            linhas.add("`#%d` %s **%s** · %s".formatted(
+                    r.id(), emoji(r.categoria()), comSinal(r.centavos()), r.categoria()));
+        }
         return new EmbedBuilder()
                 .setColor(totalGasto > totalGanho ? VERMELHO : VERDE)
                 .setAuthor("Anotei %d de uma vez!".formatted(linhas.size()))
+                .setThumbnail(Estado.aoRegistrar(LocalTime.now()).url())
                 .setDescription(String.join("\n", linhas))
                 .setFooter("gastos %s · ganhos %s · veja em /lancamentos".formatted(
                         Dinheiro.formatar(totalGasto), Dinheiro.formatar(totalGanho)))
@@ -117,8 +166,8 @@ final class Visual {
 
     // ---------------------------------------------------------------- resumo
 
-    static MessageEmbed resumo(Financas.Periodo p, Financas.Resumo atual, Financas.Resumo anterior,
-                               LocalDate hoje) {
+    static MessageEmbed resumo(Periodo p, Resumo atual, Resumo anterior,
+                               Tino.Ritmo ritmo) {
         String titulo = switch (p.unidade()) {
             case DAYS -> "Resumo de hoje";
             case WEEKS -> "Resumo da semana";
@@ -155,38 +204,30 @@ final class Visual {
                 .addField("Saldo", comSinal(atual.saldo()), true)
                 .setFooter("%s · gastos %s · ganhos %s (vs. período anterior)".formatted(
                         intervalo(p),
-                        Financas.variacao(atual.despesas(), anterior.despesas()),
-                        Financas.variacao(atual.ganhos(), anterior.ganhos())));
+                        variacao(atual.despesas(), anterior.despesas()),
+                        variacao(atual.ganhos(), anterior.ganhos())));
 
-        String ritmo = ritmo(p, atual.despesas(), hoje);
         if (ritmo != null) {
-            e.addField("Ritmo", ritmo, false);
+            e.addField("Ritmo", "%s por dia · projeção de **%s** até %s".formatted(
+                    Dinheiro.formatar(ritmo.mediaDiaria()), Dinheiro.formatar(ritmo.projecao()),
+                    p.fim().format(DIA_MES)), false);
         }
         return e.build();
     }
 
-    /**
-     * Média diária e projeção até o fim do período. Só faz sentido com o período
-     * em andamento — período encerrado já tem o total real, não uma estimativa.
-     */
-    static String ritmo(Financas.Periodo p, long despesas, LocalDate hoje) {
-        if (despesas <= 0 || hoje.isBefore(p.inicio()) || hoje.isAfter(p.fim())) {
-            return null;
+    /** Variação percentual. Sem base de comparação devolve travessão, nunca divisão por zero. */
+    static String variacao(long atual, long anterior) {
+        if (anterior == 0) {
+            return "—";
         }
-        long decorridos = ChronoUnit.DAYS.between(p.inicio(), hoje) + 1;
-        long totais = ChronoUnit.DAYS.between(p.inicio(), p.fim()) + 1;
-        if (decorridos >= totais) {
-            return null;   // último dia: a projeção seria o próprio total
-        }
-        long media = despesas / decorridos;
-        return "%s por dia · projeção de **%s** até %s".formatted(
-                Dinheiro.formatar(media), Dinheiro.formatar(media * totais), p.fim().format(DIA_MES));
+        double pct = (atual - anterior) * 100.0 / Math.abs(anterior);
+        return String.format(Locale.of("pt", "BR"), "%+.1f%%", pct);
     }
 
-    private static String listaCategorias(List<Financas.Linha> linhas, long total) {
+    private static String listaCategorias(List<Linha> linhas, long total) {
         long maior = linhas.get(0).total();
         StringBuilder sb = new StringBuilder();
-        for (Financas.Linha linha : linhas) {
+        for (Linha linha : linhas) {
             sb.append(String.format(BR, "%s `%s` **%s** · %s · %.1f%%%n",
                     emoji(linha.categoria()),
                     barra(linha.total(), maior),
@@ -199,7 +240,7 @@ final class Visual {
 
     // ----------------------------------------------------------- lançamentos
 
-    static MessageEmbed lancamentos(Financas.Periodo p, List<Financas.Lancamento> lista,
+    static MessageEmbed lancamentos(Periodo p, List<Lancamento> lista,
                                     int offset, boolean temProxima) {
         if (lista.isEmpty()) {
             return new EmbedBuilder()
@@ -211,7 +252,7 @@ final class Visual {
         }
 
         StringBuilder sb = new StringBuilder();
-        for (Financas.Lancamento l : lista) {
+        for (Lancamento l : lista) {
             sb.append("`#%d` `%s` %s **%s** · %s".formatted(
                     l.id(),
                     l.data().format(DIA_MES),
@@ -250,7 +291,7 @@ final class Visual {
     }
 
     /** Modal já preenchido: campo em branco apaga a descrição, campo intocado mantém. */
-    static Modal edicao(String usuario, Financas.Lancamento l) {
+    static Modal edicao(String usuario, Lancamento l) {
         return Modal.create("edicao:%s:%d".formatted(usuario, l.id()), "Editar #" + l.id())
                 .addComponents(
                         linha("valor", "Valor", Dinheiro.formatar(Math.abs(l.centavos()))
@@ -283,17 +324,16 @@ final class Visual {
 
     // ------------------------------------------------------------ categorias
 
-    static MessageEmbed categorias(List<String> gastos, int raizGasto, List<String> ganhos,
-                                   int raizGanho, int subGasto, int subGanho) {
+    static MessageEmbed categorias(Tino.Categorias c) {
         return new EmbedBuilder()
                 .setColor(AZUL)
                 .setTitle("🗂️ Categorias")
                 .addField("Gastos · %d/%d principais, %d/%d sub".formatted(
-                                raizGasto, Financas.MAX_RAIZ, subGasto, Financas.MAX_SUB),
-                        arvore(gastos), false)
+                                c.raizGasto(), Tino.MAX_RAIZ, c.subGasto(), Tino.MAX_SUB),
+                        arvore(c.gastos()), false)
                 .addField("Ganhos · %d/%d principais, %d/%d sub".formatted(
-                                raizGanho, Financas.MAX_RAIZ, subGanho, Financas.MAX_SUB),
-                        arvore(ganhos), false)
+                                c.raizGanho(), Tino.MAX_RAIZ, c.subGanho(), Tino.MAX_SUB),
+                        arvore(c.ganhos()), false)
                 .setFooter("gerencie com /categoria criar, renomear ou excluir")
                 .build();
     }
@@ -316,7 +356,7 @@ final class Visual {
 
     // ----------------------------------------------------------- recorrentes
 
-    static MessageEmbed recorrentes(List<Financas.Recorrente> lista) {
+    static MessageEmbed recorrentes(List<Recorrente> lista) {
         if (lista.isEmpty()) {
             return new EmbedBuilder()
                     .setColor(CINZA)
@@ -327,7 +367,7 @@ final class Visual {
         }
         StringBuilder sb = new StringBuilder();
         long total = 0;
-        for (Financas.Recorrente r : lista) {
+        for (Recorrente r : lista) {
             total += r.centavos();
             sb.append("`#%d` %s **%s** · %s".formatted(
                     r.id(), emoji(r.categoria()), comSinal(r.centavos()), r.categoria()));
@@ -344,34 +384,15 @@ final class Visual {
                 .build();
     }
 
-    // ------------------------------------------------------------------ CSV
-
-    /** Uma linha por lançamento, com cabeçalho. Ponto decimal para abrir em planilha. */
-    static String csv(List<Financas.Lancamento> lista) {
-        StringBuilder sb = new StringBuilder("id,data,valor,categoria,descricao\n");
-        for (Financas.Lancamento l : lista) {
-            sb.append("%d,%s,%s,%s,%s%n".formatted(
-                    l.id(),
-                    l.data(),
-                    java.math.BigDecimal.valueOf(l.centavos(), 2).toPlainString(),
-                    aspas(l.categoria()),
-                    aspas(l.descricao())));
-        }
-        return sb.toString();
-    }
-
-    private static String aspas(String valor) {
-        return valor == null ? "" : '"' + valor.replace("\"", "\"\"") + '"';
-    }
-
     // --------------------------------------------------------- boas-vindas
 
     static MessageEmbed boasVindas() {
         return new EmbedBuilder()
                 .setColor(VERDE)
                 .setTitle("👋 Oi, eu sou o Tino!")
+                .setThumbnail(Estado.OCIOSO.url())
                 .setDescription("""
-                        Me manda o que você gastou e eu anoto. Assim, sem comando:
+                        Me manda um gasto que eu anoto. Assim, sem comando:
                         ```
                         50 mercado
                         50 mercado 07/08 pão e leite
@@ -437,10 +458,17 @@ final class Visual {
     }
 
     static MessageEmbed aviso(String mensagem) {
-        return new EmbedBuilder().setColor(AMARELO).setDescription("⚠️ " + mensagem).build();
+        return new EmbedBuilder().setColor(AMARELO).setThumbnail(Estado.ERRO.url())
+                .setDescription("⚠️ " + maiuscula(mensagem)).build();
+    }
+
+    /** As mensagens do núcleo vêm em minúscula, para compor frase; aqui viram frase solta. */
+    private static String maiuscula(String s) {
+        return s == null || s.isEmpty() ? "" : Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 
     static MessageEmbed erro(String mensagem) {
-        return new EmbedBuilder().setColor(VERMELHO).setDescription("❌ " + mensagem).build();
+        return new EmbedBuilder().setColor(VERMELHO).setThumbnail(Estado.ERRO.url())
+                .setDescription("❌ " + mensagem).build();
     }
 }

@@ -1,6 +1,6 @@
 # Política de Privacidade — Tino
 
-**Última atualização:** 8 de agosto de 2026
+**Última atualização:** 4 de novembro de 2026
 
 O Tino é um bot de Discord de código aberto, mantido por
 [hemkdev](https://github.com/hemkdev) como projeto pessoal. Esta política
@@ -10,8 +10,10 @@ descreve, sem rodeios, o que ele guarda e o que faz com isso.
 
 Quando você registra um lançamento, ficam guardados:
 
-- **Seu identificador de usuário do Discord** — o número da sua conta, usado
-  para separar seus dados dos de outras pessoas
+- **Seu identificador de usuário do Discord** — o número da sua conta no
+  Discord, ligado a uma conta interna do Tino (um número sequencial). É essa
+  conta interna que separa seus dados dos de outras pessoas e que, no futuro,
+  permitirá entrar por outros canais vendo os mesmos lançamentos
 - **Valor, categoria e data** de cada gasto ou ganho
 - **Descrição**, quando você escreve uma
 - **Suas categorias**, incluindo as que você criar ou renomear
@@ -41,7 +43,7 @@ repositório e as instruções estão no README.
 
 ## Quem consegue ver
 
-Somente você. Toda consulta do bot é filtrada pelo seu identificador de usuário,
+Somente você. Toda consulta do bot é filtrada pela sua conta,
 e existem testes automatizados que verificam esse isolamento.
 
 Em conversa privada, as respostas ficam no seu histórico do Discord. Em
@@ -69,7 +71,7 @@ Você pode apagar dados a qualquer momento:
 - **Uma categoria** — `/categoria excluir` (recusa se houver lançamentos, para
   não apagar histórico sem querer)
 - **Tudo** — abra uma
-  [issue no repositório](https://github.com/hemkdev/finance-bot/issues)
+  [issue no repositório](https://github.com/hemkdev/Tino/issues)
   informando seu identificador de usuário do Discord. A remoção é feita
   manualmente e sem questionamento
 
@@ -97,9 +99,9 @@ não tem idade para usá-lo.
 
 Alterações são publicadas neste arquivo, com a data acima atualizada. O histórico
 completo de versões fica visível no
-[repositório](https://github.com/hemkdev/finance-bot/commits/main/docs/PRIVACIDADE.md).
+[repositório](https://github.com/hemkdev/Tino/commits/main/docs/PRIVACIDADE.md).
 
 ## Contato
 
 Dúvidas, pedidos de exclusão ou problemas:
-[issues do repositório](https://github.com/hemkdev/finance-bot/issues).
+[issues do repositório](https://github.com/hemkdev/Tino/issues).

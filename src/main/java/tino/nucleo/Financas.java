@@ -1,15 +1,11 @@
-package financebot;
+package tino.nucleo;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -30,49 +26,6 @@ final class Financas {
             "Salário", "Freelance", "Investimentos", "Outros");
 
     private Financas() {}
-
-    // ---------------------------------------------------------------- modelo
-
-    record Linha(String categoria, long total) {}
-
-    record Lancamento(long id, LocalDate data, long centavos, String categoria, String descricao) {}
-
-    record Resumo(long ganhos, long despesas, List<Linha> porDespesa, List<Linha> porGanho) {
-        long saldo() {
-            return ganhos - despesas;
-        }
-
-        boolean vazio() {
-            return ganhos == 0 && despesas == 0;
-        }
-    }
-
-    record Periodo(LocalDate inicio, LocalDate fim, ChronoUnit unidade) {
-
-        static Periodo de(String tipo, LocalDate hoje) {
-            return switch (tipo) {
-                case "dia" -> new Periodo(hoje, hoje, ChronoUnit.DAYS);
-                case "semana" -> new Periodo(
-                        hoje.with(DayOfWeek.MONDAY), hoje.with(DayOfWeek.SUNDAY), ChronoUnit.WEEKS);
-                case "ano" -> new Periodo(
-                        hoje.withDayOfYear(1), hoje.withDayOfYear(hoje.lengthOfYear()), ChronoUnit.YEARS);
-                default -> new Periodo(
-                        hoje.withDayOfMonth(1), hoje.withDayOfMonth(hoje.lengthOfMonth()), ChronoUnit.MONTHS);
-            };
-        }
-
-        Periodo anterior() {
-            return switch (unidade) {
-                case DAYS -> new Periodo(inicio.minusDays(1), fim.minusDays(1), unidade);
-                case WEEKS -> new Periodo(inicio.minusWeeks(1), fim.minusWeeks(1), unidade);
-                case YEARS -> new Periodo(inicio.minusYears(1), fim.minusYears(1), unidade);
-                default -> {
-                    LocalDate i = inicio.minusMonths(1);
-                    yield new Periodo(i, i.withDayOfMonth(i.lengthOfMonth()), unidade);
-                }
-            };
-        }
-    }
 
     // ------------------------------------------------------------- estrutura
 
@@ -104,6 +57,16 @@ final class Financas {
                         descricao      TEXT
                     )""");
             s.execute("CREATE INDEX IF NOT EXISTS idx_consulta ON lancamento (usuario, data)");
+            // A coluna usuario guarda o id da conta. Cada canal (Discord, Google, Telegram)
+            // é uma identidade que aponta para ela, então uma conta tem várias entradas.
+            s.execute("CREATE TABLE IF NOT EXISTS conta (id INTEGER PRIMARY KEY)");
+            s.execute("""
+                    CREATE TABLE IF NOT EXISTS identidade (
+                        provedor TEXT    NOT NULL,
+                        externo  TEXT    NOT NULL,
+                        conta_id INTEGER NOT NULL REFERENCES conta(id),
+                        PRIMARY KEY (provedor, externo)
+                    )""");
         }
     }
 
@@ -139,6 +102,104 @@ final class Financas {
             ps.executeBatch();
         }
         return true;
+    }
+
+    // ---------------------------------------------------------------- contas
+
+    /** Conta dona desta identidade, criada no primeiro contato. Devolve o id usado em {@code usuario}. */
+    static String conta(Connection c, String provedor, String externo) throws SQLException {
+        Optional<String> existente = contaDa(c, provedor, externo);
+        if (existente.isPresent()) {
+            return existente.get();
+        }
+        long id;
+        try (Statement s = c.createStatement()) {
+            s.execute("INSERT INTO conta DEFAULT VALUES");
+            try (ResultSet rs = s.executeQuery("SELECT last_insert_rowid()")) {
+                rs.next();
+                id = rs.getLong(1);
+            }
+        }
+        inserirIdentidade(c, provedor, externo, id);
+        return String.valueOf(id);
+    }
+
+    /** Liga mais uma identidade a uma conta existente: entrar pelo Google e ver o que lançou pelo Discord. */
+    static void vincular(Connection c, String conta, String provedor, String externo)
+            throws SQLException {
+        Optional<String> dona = contaDa(c, provedor, externo);
+        if (dona.isPresent() && !dona.get().equals(conta)) {
+            // ponytail: sem fusão de contas; se as duas tiverem dados, quem chama decide.
+            throw new IllegalArgumentException("essa conta de " + provedor + " já está ligada a outro usuário");
+        }
+        if (dona.isEmpty()) {
+            inserirIdentidade(c, provedor, externo, Long.parseLong(conta));
+        }
+    }
+
+    private static Optional<String> contaDa(Connection c, String provedor, String externo)
+            throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement(
+                "SELECT conta_id FROM identidade WHERE provedor = ? AND externo = ?")) {
+            ps.setString(1, provedor);
+            ps.setString(2, externo);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? Optional.of(rs.getString(1)) : Optional.empty();
+            }
+        }
+    }
+
+    private static void inserirIdentidade(Connection c, String provedor, String externo, long conta)
+            throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement(
+                "INSERT INTO identidade (provedor, externo, conta_id) VALUES (?, ?, ?)")) {
+            ps.setString(1, provedor);
+            ps.setString(2, externo);
+            ps.setLong(3, conta);
+            ps.executeUpdate();
+        }
+    }
+
+    /**
+     * Antes das contas, {@code usuario} guardava o id do Discord. Roda no boot e troca
+     * cada um pela conta correspondente. Idempotente: id de conta é pequeno, snowflake
+     * do Discord tem 17+ dígitos, então o que já é conta não volta a ser migrado.
+     */
+    static void migrarParaContas(Connection c) throws SQLException {
+        List<String> antigos = new ArrayList<>();
+        try (Statement s = c.createStatement();
+             ResultSet rs = s.executeQuery("""
+                     SELECT usuario FROM categoria
+                     UNION SELECT usuario FROM lancamento
+                     UNION SELECT usuario FROM recorrente
+                     EXCEPT SELECT CAST(id AS TEXT) FROM conta""")) {
+            while (rs.next()) {
+                antigos.add(rs.getString(1));
+            }
+        }
+        if (antigos.isEmpty()) {
+            return;
+        }
+        c.setAutoCommit(false);
+        try {
+            for (String discord : antigos) {
+                String conta = conta(c, "discord", discord);
+                for (String tabela : List.of("categoria", "lancamento", "recorrente")) {
+                    try (PreparedStatement ps = c.prepareStatement(
+                            "UPDATE " + tabela + " SET usuario = ? WHERE usuario = ?")) {
+                        ps.setString(1, conta);
+                        ps.setString(2, discord);
+                        ps.executeUpdate();
+                    }
+                }
+            }
+            c.commit();
+        } catch (SQLException e) {
+            c.rollback();
+            throw e;
+        } finally {
+            c.setAutoCommit(true);
+        }
     }
 
     // ------------------------------------------------------------ categorias
@@ -484,7 +545,6 @@ final class Financas {
 
     // ----------------------------------------------------------- recorrentes
 
-    record Recorrente(long id, long centavos, String categoria, String descricao) {}
 
     static long adicionarRecorrente(Connection c, String usuario, long centavos, long categoriaId,
                                     String descricao) throws SQLException {
@@ -685,43 +745,4 @@ final class Financas {
         return anterior[b.length()];
     }
 
-    /** Variação percentual. Sem base de comparação devolve travessão, nunca divisão por zero. */
-    static String variacao(long atual, long anterior) {
-        if (anterior == 0) {
-            return "—";
-        }
-        double pct = (atual - anterior) * 100.0 / Math.abs(anterior);
-        return String.format(Locale.of("pt", "BR"), "%+.1f%%", pct);
-    }
-
-    // ----------------------------------------------------------------- datas
-
-    private static final DateTimeFormatter DIA_MES = DateTimeFormatter.ofPattern("d/M/yyyy");
-
-    /** Aceita "DD/MM", "AAAA-MM-DD" ou vazio (hoje). Rejeita data futura. */
-    static LocalDate parseData(String texto, LocalDate hoje) {
-        if (texto == null || texto.isBlank()) {
-            return hoje;
-        }
-        String limpo = texto.trim();
-        if (limpo.matches("\\d{1,2}")) {
-            limpo = limpo + "/" + hoje.getMonthValue();   // só o dia: mês corrente
-        }
-        LocalDate data;
-        try {
-            data = limpo.contains("/")
-                    ? LocalDate.parse(limpo + "/" + hoje.getYear(), DIA_MES)
-                    : LocalDate.parse(limpo);
-        } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException("data inválida: use DD/MM ou AAAA-MM-DD");
-        }
-        // "25/12" digitado em janeiro é dezembro do ano passado, não do que vem.
-        if (data.isAfter(hoje) && limpo.contains("/")) {
-            data = data.minusYears(1);
-        }
-        if (data.isAfter(hoje)) {
-            throw new IllegalArgumentException("a data não pode ser futura");
-        }
-        return data;
-    }
 }

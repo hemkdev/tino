@@ -1,11 +1,11 @@
-package financebot;
+package tino.nucleo;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Locale;
 
 /** Conversão entre texto digitado pelo usuário e centavos. */
-final class Dinheiro {
+public final class Dinheiro {
 
     /** R$ 1.000.000,00 — acima disso é quase certamente erro de digitação. */
     static final long LIMITE = 100_000_000L;
@@ -15,7 +15,7 @@ final class Dinheiro {
     private Dinheiro() {}
 
     /** Aceita "50", "50,00", "1.234,56", "1234.56" e "R$ 50". Sempre positivo. */
-    static long paraCentavos(String texto) {
+    public static long paraCentavos(String texto) {
         if (texto == null || texto.isBlank()) {
             throw new IllegalArgumentException("informe um valor");
         }
@@ -55,7 +55,7 @@ final class Dinheiro {
         return centavos.longValueExact();
     }
 
-    static String formatar(long centavos) {
+    public static String formatar(long centavos) {
         return String.format(BR, "R$ %,.2f", BigDecimal.valueOf(centavos, 2));
     }
 }

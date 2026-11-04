@@ -1,7 +1,8 @@
-package financebot;
+package tino.nucleo;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 
@@ -12,6 +13,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EntradaTest {
+
+    private static final LocalDate HOJE = LocalDate.of(2026, 8, 7);
 
     @Test
     void valorEcategoria() {
@@ -347,5 +350,40 @@ class EntradaTest {
         assertFalse(Entrada.pareceLancamento("obrigado"));
         assertFalse(Entrada.pareceLancamento(""));
         assertFalse(Entrada.pareceLancamento(null));
+    }
+
+    // ----------------------------------------------------------------- datas
+
+    @Test
+    void dataVaziaViraHoje() {
+        assertEquals(HOJE, Entrada.data(null, HOJE));
+        assertEquals(HOJE, Entrada.data("", HOJE));
+    }
+
+    @Test
+    void aceitaDiaBarraMesEIso() {
+        assertEquals(LocalDate.of(2026, 8, 1), Entrada.data("1/8", HOJE));
+        assertEquals(LocalDate.of(2026, 7, 15), Entrada.data("2026-07-15", HOJE));
+    }
+
+    @Test
+    void diaSoltoUsaOMesCorrente() {
+        assertEquals(LocalDate.of(2026, 8, 5), Entrada.data("5", HOJE));
+        assertEquals(LocalDate.of(2026, 8, 5), Entrada.data("05", HOJE));
+    }
+
+    @Test
+    void diaBarraMesFuturoCaiNoAnoAnterior() {
+        assertEquals(LocalDate.of(2025, 12, 25), Entrada.data("25/12", HOJE));
+    }
+
+    @Test
+    void rejeitaDataFuturaExplicita() {
+        assertThrows(IllegalArgumentException.class, () -> Entrada.data("2026-12-25", HOJE));
+    }
+
+    @Test
+    void rejeitaDataInvalida() {
+        assertThrows(IllegalArgumentException.class, () -> Entrada.data("ontem", HOJE));
     }
 }

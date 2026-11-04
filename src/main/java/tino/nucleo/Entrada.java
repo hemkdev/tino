@@ -1,6 +1,9 @@
-package financebot;
+package tino.nucleo;
 
 import java.text.Normalizer;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -32,9 +35,9 @@ import java.util.regex.Pattern;
  * 50 mercado, 30 uber, 12 café
  * </pre>
  */
-final class Entrada {
+public final class Entrada {
 
-    private static final String EXEMPLO = "não entendi — tente `50 mercado` ou `+3000 salário`";
+    private static final String EXEMPLO = "Não achei o valor. Manda assim: `23,50 uber` ou `+3000 salário`.";
 
     private static final Locale BR = Locale.of("pt", "BR");
 
@@ -48,7 +51,7 @@ final class Entrada {
     /** Quantos campos seguidos vale a pena testar como nome de categoria composta. */
     private static final int MAX_CAMPOS_CATEGORIA = 4;
 
-    record Item(long centavos, String categoria, String data, String descricao, boolean ganho) {}
+    public record Item(long centavos, String categoria, String data, String descricao, boolean ganho) {}
 
     private Entrada() {}
 
@@ -101,7 +104,7 @@ final class Entrada {
         return itens;
     }
 
-    static Item item(String texto) {
+    public static Item item(String texto) {
         return item(texto, Set.of());
     }
 
@@ -185,7 +188,7 @@ final class Entrada {
     }
 
     /** Vale a pena tratar como lançamento? Usado para ignorar conversa solta na DM. */
-    static boolean pareceLancamento(String texto) {
+    public static boolean pareceLancamento(String texto) {
         if (texto == null || texto.isBlank()) {
             return false;
         }
@@ -196,7 +199,7 @@ final class Entrada {
     // --------------------------------------------------------------- consulta
 
     /** O que a pessoa quis ver, quando escreveu em vez de usar um comando. */
-    record Consulta(String tipo, String periodo) {}
+    public record Consulta(String tipo, String periodo) {}
 
     // Listas de entradas, e não Map.of, porque a ordem desempata: Map.of itera em ordem aleatória.
     private static final List<Map.Entry<String, List<String>>> GATILHOS = List.of(
@@ -220,7 +223,7 @@ final class Entrada {
      * "extrato de hoje". Devolve {@code null} quando não é nada disso — conversa
      * solta não deve gerar resposta.
      */
-    static Consulta consulta(String texto) {
+    public static Consulta consulta(String texto) {
         if (texto == null || texto.isBlank() || texto.length() > 120) {
             return null;
         }
@@ -262,5 +265,36 @@ final class Entrada {
     private static String semAcento(String texto) {
         return Normalizer.normalize(texto, Normalizer.Form.NFD)
                 .replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
+    }
+
+    // ----------------------------------------------------------------- datas
+
+    private static final DateTimeFormatter DIA_MES = DateTimeFormatter.ofPattern("d/M/yyyy");
+
+    /** Aceita "DD/MM", "AAAA-MM-DD" ou vazio (hoje). Rejeita data futura. */
+    public static LocalDate data(String texto, LocalDate hoje) {
+        if (texto == null || texto.isBlank()) {
+            return hoje;
+        }
+        String limpo = texto.trim();
+        if (limpo.matches("\\d{1,2}")) {
+            limpo = limpo + "/" + hoje.getMonthValue();   // só o dia: mês corrente
+        }
+        LocalDate data;
+        try {
+            data = limpo.contains("/")
+                    ? LocalDate.parse(limpo + "/" + hoje.getYear(), DIA_MES)
+                    : LocalDate.parse(limpo);
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("data inválida: use DD/MM ou AAAA-MM-DD");
+        }
+        // "25/12" digitado em janeiro é dezembro do ano passado, não do que vem.
+        if (data.isAfter(hoje) && limpo.contains("/")) {
+            data = data.minusYears(1);
+        }
+        if (data.isAfter(hoje)) {
+            throw new IllegalArgumentException("a data não pode ser futura");
+        }
+        return data;
     }
 }

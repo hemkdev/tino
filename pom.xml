@@ -4,8 +4,8 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
   <modelVersion>4.0.0</modelVersion>
-  <groupId>financebot</groupId>
-  <artifactId>finance-bot</artifactId>
+  <groupId>tino</groupId>
+  <artifactId>tino</artifactId>
   <version>1.0</version>
 
   <properties>
@@ -48,7 +48,7 @@
   </dependencies>
 
   <build>
-    <finalName>finance-bot</finalName>
+    <finalName>tino</finalName>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -65,9 +65,10 @@
             <phase>package</phase>
             <goals><goal>shade</goal></goals>
             <configuration>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                  <mainClass>financebot.Bot</mainClass>
+                  <mainClass>tino.discord.Bot</mainClass>
                 </transformer>
               </transformers>
               <filters>

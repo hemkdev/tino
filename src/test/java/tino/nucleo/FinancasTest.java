@@ -1,4 +1,4 @@
-package financebot;
+package tino.nucleo;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,8 +10,8 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
 
-import static financebot.Financas.GANHO;
-import static financebot.Financas.GASTO;
+import static tino.nucleo.Financas.GANHO;
+import static tino.nucleo.Financas.GASTO;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -50,8 +50,8 @@ class FinancasTest {
                 Financas.categoriaId(c, usuario, categoria, GANHO), null, HOJE);
     }
 
-    private Financas.Resumo resumoDoMes(String usuario) throws SQLException {
-        return Financas.resumo(c, usuario, Financas.Periodo.de("mes", HOJE));
+    private Resumo resumoDoMes(String usuario) throws SQLException {
+        return Financas.resumo(c, usuario, Periodo.de("mes", HOJE));
     }
 
     // ---------------------------------------------------------------- resumo
@@ -62,7 +62,7 @@ class FinancasTest {
         gasto(EU, "30", "Transporte", HOJE);
         ganho(EU, "3000", "Salário");
 
-        Financas.Resumo r = resumoDoMes(EU);
+        Resumo r = resumoDoMes(EU);
 
         assertEquals(300_000, r.ganhos());
         assertEquals(8_000, r.despesas());
@@ -75,11 +75,11 @@ class FinancasTest {
         ganho(EU, "3000", "Salário");
         ganho(EU, "500", "Freelance");
 
-        Financas.Resumo r = resumoDoMes(EU);
+        Resumo r = resumoDoMes(EU);
 
-        assertEquals(List.of("Alimentação"), r.porDespesa().stream().map(Financas.Linha::categoria).toList());
+        assertEquals(List.of("Alimentação"), r.porDespesa().stream().map(Linha::categoria).toList());
         assertEquals(List.of("Salário", "Freelance"),
-                r.porGanho().stream().map(Financas.Linha::categoria).toList());
+                r.porGanho().stream().map(Linha::categoria).toList());
         assertEquals(300_000, r.porGanho().get(0).total());
     }
 
@@ -113,7 +113,7 @@ class FinancasTest {
         gasto(EU, "40", "Alimentação > Restaurante", HOJE);
         gasto(EU, "30", "Transporte", HOJE);
 
-        List<Financas.Linha> linhas = resumoDoMes(EU).porDespesa();
+        List<Linha> linhas = resumoDoMes(EU).porDespesa();
 
         assertEquals(2, linhas.size());
         assertEquals("Alimentação", linhas.get(0).categoria());
@@ -284,8 +284,8 @@ class FinancasTest {
         gasto(EU, "10", "Alimentação", HOJE.minusDays(2));
         gasto(EU, "20", "Transporte", HOJE);
 
-        List<Financas.Lancamento> lista =
-                Financas.lancamentos(c, EU, Financas.Periodo.de("mes", HOJE), 20, 0);
+        List<Lancamento> lista =
+                Financas.lancamentos(c, EU, Periodo.de("mes", HOJE), 20, 0);
 
         assertEquals(2, lista.size());
         assertEquals(HOJE, lista.get(0).data());
@@ -298,7 +298,7 @@ class FinancasTest {
         gasto(EU, "10", "Alimentação > Mercado", HOJE);
 
         assertEquals("Alimentação > Mercado",
-                Financas.lancamentos(c, EU, Financas.Periodo.de("mes", HOJE), 20, 0).get(0).categoria());
+                Financas.lancamentos(c, EU, Periodo.de("mes", HOJE), 20, 0).get(0).categoria());
     }
 
     @Test
@@ -307,7 +307,7 @@ class FinancasTest {
             gasto(EU, "10", "Alimentação", HOJE);
         }
 
-        assertEquals(3, Financas.lancamentos(c, EU, Financas.Periodo.de("mes", HOJE), 3, 0).size());
+        assertEquals(3, Financas.lancamentos(c, EU, Periodo.de("mes", HOJE), 3, 0).size());
     }
 
     @Test
@@ -316,12 +316,12 @@ class FinancasTest {
             Financas.registrar(c, EU, -(i + 1) * 1_000L,
                     Financas.categoriaId(c, EU, "Lazer", GASTO), null, HOJE);
         }
-        Financas.Periodo mes = Financas.Periodo.de("mes", HOJE);
+        Periodo mes = Periodo.de("mes", HOJE);
 
         List<Long> pagina1 = Financas.lancamentos(c, EU, mes, 2, 0)
-                .stream().map(Financas.Lancamento::id).toList();
+                .stream().map(Lancamento::id).toList();
         List<Long> pagina2 = Financas.lancamentos(c, EU, mes, 2, 2)
-                .stream().map(Financas.Lancamento::id).toList();
+                .stream().map(Lancamento::id).toList();
 
         assertEquals(2, pagina1.size());
         assertEquals(2, pagina2.size());
@@ -332,14 +332,14 @@ class FinancasTest {
     void offsetAlemDoFimVemVazio() throws SQLException {
         gasto(EU, "10", "Lazer", HOJE);
 
-        assertTrue(Financas.lancamentos(c, EU, Financas.Periodo.de("mes", HOJE), 20, 50).isEmpty());
+        assertTrue(Financas.lancamentos(c, EU, Periodo.de("mes", HOJE), 20, 50).isEmpty());
     }
 
     @Test
     void listaNaoMostraLancamentoDeOutroUsuario() throws SQLException {
         gasto(OUTRO, "10", "Alimentação", HOJE);
 
-        assertTrue(Financas.lancamentos(c, EU, Financas.Periodo.de("mes", HOJE), 20, 0).isEmpty());
+        assertTrue(Financas.lancamentos(c, EU, Periodo.de("mes", HOJE), 20, 0).isEmpty());
     }
 
     // -------------------------------------------------------------- remoção
@@ -365,7 +365,7 @@ class FinancasTest {
         long id = Financas.categoriaId(c, EU, "Alimentação > Mercado", GASTO);
 
         assertEquals(14_000, Financas.totalDaCategoria(
-                c, EU, id, Financas.Periodo.de("mes", HOJE), false));
+                c, EU, id, Periodo.de("mes", HOJE), false));
     }
 
     @Test
@@ -420,7 +420,7 @@ class FinancasTest {
         Financas.atualizar(c, EU, id, -7_500,
                 Financas.categoriaId(c, EU, "Alimentação", GASTO), "jantar", HOJE.minusDays(1));
 
-        Financas.Lancamento l = Financas.buscar(c, EU, id).orElseThrow();
+        Lancamento l = Financas.buscar(c, EU, id).orElseThrow();
         assertEquals(-7_500, l.centavos());
         assertEquals("Alimentação", l.categoria());
         assertEquals("jantar", l.descricao());
@@ -448,7 +448,7 @@ class FinancasTest {
 
         assertEquals(2, Financas.lancarRecorrentes(c, EU, HOJE));
 
-        Financas.Resumo r = resumoDoMes(EU);
+        Resumo r = resumoDoMes(EU);
         assertEquals(150_000, r.despesas());
         assertEquals(300_000, r.ganhos());
     }
@@ -485,7 +485,7 @@ class FinancasTest {
 
     @Test
     void mesVaiDoPrimeiroAoUltimoDia() {
-        Financas.Periodo p = Financas.Periodo.de("mes", HOJE);
+        Periodo p = Periodo.de("mes", HOJE);
 
         assertEquals(LocalDate.of(2026, 8, 1), p.inicio());
         assertEquals(LocalDate.of(2026, 8, 31), p.fim());
@@ -493,7 +493,7 @@ class FinancasTest {
 
     @Test
     void semanaVaiDeSegundaADomingo() {
-        Financas.Periodo p = Financas.Periodo.de("semana", HOJE);
+        Periodo p = Periodo.de("semana", HOJE);
 
         assertEquals(LocalDate.of(2026, 8, 3), p.inicio());
         assertEquals(LocalDate.of(2026, 8, 9), p.fim());
@@ -501,7 +501,7 @@ class FinancasTest {
 
     @Test
     void mesAnteriorRespeitaTamanhoDoMes() {
-        Financas.Periodo p = Financas.Periodo.de("mes", LocalDate.of(2026, 3, 15)).anterior();
+        Periodo p = Periodo.de("mes", LocalDate.of(2026, 3, 15)).anterior();
 
         assertEquals(LocalDate.of(2026, 2, 1), p.inicio());
         assertEquals(LocalDate.of(2026, 2, 28), p.fim());
@@ -509,7 +509,7 @@ class FinancasTest {
 
     @Test
     void anoAnteriorAtravessaAVirada() {
-        Financas.Periodo p = Financas.Periodo.de("ano", HOJE).anterior();
+        Periodo p = Periodo.de("ano", HOJE).anterior();
 
         assertEquals(LocalDate.of(2025, 1, 1), p.inicio());
         assertEquals(LocalDate.of(2025, 12, 31), p.fim());
@@ -517,49 +517,50 @@ class FinancasTest {
 
     // -------------------------------------------------------------- variação
 
+    // ----------------------------------------------------------------- contas
+
     @Test
-    void variacaoSemBaseDeComparacaoNaoDividePorZero() {
-        assertEquals("—", Financas.variacao(1_000, 0));
+    void mesmaIdentidadeDevolveMesmaConta() throws SQLException {
+        String conta = Financas.conta(c, "discord", "999");
+
+        assertEquals(conta, Financas.conta(c, "discord", "999"));
+        assertFalse(conta.equals(Financas.conta(c, "discord", "888")));
     }
 
     @Test
-    void variacaoMostraSinal() {
-        assertEquals("+50,0%", Financas.variacao(150, 100));
-        assertEquals("-25,0%", Financas.variacao(75, 100));
-    }
-
-    // ----------------------------------------------------------------- datas
-
-    @Test
-    void dataVaziaViraHoje() {
-        assertEquals(HOJE, Financas.parseData(null, HOJE));
-        assertEquals(HOJE, Financas.parseData("", HOJE));
+    void mesmoIdEmProvedorDiferenteEhOutraConta() throws SQLException {
+        assertFalse(Financas.conta(c, "discord", "999").equals(Financas.conta(c, "telegram", "999")));
     }
 
     @Test
-    void aceitaDiaBarraMesEIso() {
-        assertEquals(LocalDate.of(2026, 8, 1), Financas.parseData("1/8", HOJE));
-        assertEquals(LocalDate.of(2026, 7, 15), Financas.parseData("2026-07-15", HOJE));
+    void vincularLigaNovaIdentidadeAContaExistente() throws SQLException {
+        String conta = Financas.conta(c, "discord", "999");
+
+        Financas.vincular(c, conta, "google", "eu@exemplo.com");
+
+        assertEquals(conta, Financas.conta(c, "google", "eu@exemplo.com"));
     }
 
     @Test
-    void diaSoltoUsaOMesCorrente() {
-        assertEquals(LocalDate.of(2026, 8, 5), Financas.parseData("5", HOJE));
-        assertEquals(LocalDate.of(2026, 8, 5), Financas.parseData("05", HOJE));
+    void vincularIdentidadeDeOutraContaEhRecusado() throws SQLException {
+        String minha = Financas.conta(c, "discord", "999");
+        Financas.conta(c, "google", "outro@exemplo.com");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> Financas.vincular(c, minha, "google", "outro@exemplo.com"));
     }
 
     @Test
-    void diaBarraMesFuturoCaiNoAnoAnterior() {
-        assertEquals(LocalDate.of(2025, 12, 25), Financas.parseData("25/12", HOJE));
-    }
+    void migracaoMoveDadosDoIdDoDiscordParaConta() throws SQLException {
+        // EU e OUTRO foram gravados como antes: usuario = id do Discord
+        gasto(EU, "50", "Lazer", HOJE);
 
-    @Test
-    void rejeitaDataFuturaExplicita() {
-        assertThrows(IllegalArgumentException.class, () -> Financas.parseData("2026-12-25", HOJE));
-    }
+        Financas.migrarParaContas(c);
+        Financas.migrarParaContas(c);   // idempotente
 
-    @Test
-    void rejeitaDataInvalida() {
-        assertThrows(IllegalArgumentException.class, () -> Financas.parseData("ontem", HOJE));
+        String conta = Financas.conta(c, "discord", EU);
+        assertEquals(5_000, resumoDoMes(conta).despesas());
+        assertEquals(0, resumoDoMes(EU).despesas());
+        assertFalse(conta.equals(Financas.conta(c, "discord", OUTRO)));
     }
 }

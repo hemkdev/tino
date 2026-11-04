@@ -1,3 +1,6 @@
+# Material local, fora do git (plano, brief, personagem em preparo)
+local/
+
 # Segredos e configuração local
 .env
 .env.*
@@ -36,6 +39,3 @@ Thumbs.db
 *.log
 logs/
 
-# Maven
-target/
-dependency-reduced-pom.xml
