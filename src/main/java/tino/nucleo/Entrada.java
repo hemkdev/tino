@@ -37,7 +37,7 @@ import java.util.regex.Pattern;
  */
 public final class Entrada {
 
-    private static final String EXEMPLO = "não entendi — tente `50 mercado` ou `+3000 salário`";
+    private static final String EXEMPLO = "Não achei o valor. Manda assim: `23,50 uber` ou `+3000 salário`.";
 
     private static final Locale BR = Locale.of("pt", "BR");
 

@@ -186,7 +186,7 @@ public class Bot extends ListenerAdapter {
             evento.getHook().sendMessageEmbeds(Visual.aviso(e.getMessage())).queue();
         } catch (Exception e) {
             LOG.error("falha em /{}", evento.getName(), e);   // sem valores nem descrições no log
-            evento.getHook().sendMessageEmbeds(Visual.erro("deu erro aqui, tenta de novo")).queue();
+            evento.getHook().sendMessageEmbeds(Visual.erro("Algo deu errado do meu lado. Tenta de novo daqui a pouco.")).queue();
         }
     }
 
@@ -199,7 +199,7 @@ public class Bot extends ListenerAdapter {
             case "categoria" -> Resposta.de(categoria(evento, usuario));
             case "fixo" -> Resposta.de(fixo(evento, usuario));
             case "ajuda" -> Resposta.de(Visual.ajuda());
-            default -> Resposta.de(Visual.erro("comando desconhecido"));
+            default -> Resposta.de(Visual.erro("Não conheço esse comando. Digite `ajuda` para ver o que eu faço."));
         };
     }
 
@@ -243,7 +243,7 @@ public class Bot extends ListenerAdapter {
             evento.getMessage().replyEmbeds(Visual.aviso(e.getMessage())).queue();
         } catch (Exception e) {
             LOG.error("falha ao interpretar mensagem", e);
-            evento.getMessage().replyEmbeds(Visual.erro("deu erro aqui, tenta de novo")).queue();
+            evento.getMessage().replyEmbeds(Visual.erro("Algo deu errado do meu lado. Tenta de novo daqui a pouco.")).queue();
         }
     }
 
@@ -307,7 +307,7 @@ public class Bot extends ListenerAdapter {
             }
         } catch (Exception e) {
             LOG.error("falha no botão {}", partes[0], e);
-            evento.reply("deu erro aqui, tenta de novo").setEphemeral(true).queue();
+            evento.reply("Algo deu errado do meu lado. Tenta de novo daqui a pouco.").setEphemeral(true).queue();
         }
     }
 
@@ -333,7 +333,7 @@ public class Bot extends ListenerAdapter {
             evento.getHook().sendMessageEmbeds(Visual.aviso(e.getMessage())).setEphemeral(true).queue();
         } catch (Exception e) {
             LOG.error("falha ao editar", e);
-            evento.getHook().sendMessageEmbeds(Visual.erro("não consegui editar")).setEphemeral(true).queue();
+            evento.getHook().sendMessageEmbeds(Visual.erro("Não consegui editar. Tenta de novo daqui a pouco.")).setEphemeral(true).queue();
         }
     }
 

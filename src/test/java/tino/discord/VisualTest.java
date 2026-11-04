@@ -11,6 +11,7 @@ import net.dv8tion.jda.api.entities.MessageEmbed;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
@@ -25,6 +26,7 @@ class VisualTest {
     private static final Periodo AGOSTO = new Periodo(
             LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31), ChronoUnit.MONTHS);
     private static final LocalDate HOJE = LocalDate.of(2026, 8, 7);
+    private static final LocalTime MEIO_DIA = LocalTime.NOON;
 
     @Test
     void barraEncheProporcionalmenteAMaiorLinha() {
@@ -81,8 +83,8 @@ class VisualTest {
 
     @Test
     void registroDeGastoEDeGanhoUsamCoresDiferentes() {
-        MessageEmbed gasto = Visual.registro(-5_000, "Lazer", null, HOJE, 12, 0, null);
-        MessageEmbed ganho = Visual.registro(5_000, "Salário", null, HOJE, 13, 0, null);
+        MessageEmbed gasto = Visual.registro(-5_000, "Lazer", null, HOJE, 12, 0, null, MEIO_DIA);
+        MessageEmbed ganho = Visual.registro(5_000, "Salário", null, HOJE, 13, 0, null, MEIO_DIA);
 
         assertNotNull(gasto.getColor());
         assertTrue(gasto.getColor().getRed() > gasto.getColor().getGreen());
@@ -92,7 +94,7 @@ class VisualTest {
 
     @Test
     void registroMostraDescricaoQuandoExiste() {
-        assertTrue(Visual.registro(-5_000, "Lazer", "cinema", HOJE, 1, 0, null)
+        assertTrue(Visual.registro(-5_000, "Lazer", "cinema", HOJE, 1, 0, null, MEIO_DIA)
                 .getDescription().contains("cinema"));
     }
 
@@ -132,7 +134,7 @@ class VisualTest {
 
     @Test
     void registroMostraAcumuladoDoMes() {
-        assertTrue(Visual.registro(-5_000, "Lazer", null, HOJE, 1, 84_000, null)
+        assertTrue(Visual.registro(-5_000, "Lazer", null, HOJE, 1, 84_000, null, MEIO_DIA)
                 .getDescription().contains("R$ 840,00"));
     }
 
@@ -141,8 +143,7 @@ class VisualTest {
         String d = Visual.foraDoNormal(new Evento.ForaDoNormal(
                 new Pedido(-480_000, "Moradia", null, HOJE), 180_000)).getDescription();
 
-        assertTrue(d.contains("R$ 4.800,00 em Moradia?"));
-        assertTrue(d.contains("Seu normal é R$ 1.800,00"));
+        assertEquals("R$ 4.800 em Moradia? Seu normal é 1.800.", d);
     }
 
     @Test
@@ -156,7 +157,7 @@ class VisualTest {
 
     @Test
     void registroAvisaCategoriaParecidaRecemCriada() {
-        assertTrue(Visual.registro(-5_000, "Transprte", null, HOJE, 1, 0, "Transporte")
+        assertTrue(Visual.registro(-5_000, "Transprte", null, HOJE, 1, 0, "Transporte", MEIO_DIA)
                 .getDescription().contains("Transporte"));
     }
 
@@ -235,9 +236,19 @@ class VisualTest {
     }
 
     @Test
-    void registroMostraOTinoComemorandoOuDormindo() {
-        String url = broto(Visual.registro(-5_000, "Lazer", null, HOJE, 1, 0, null));
-        assertTrue(url.endsWith("/sucesso.gif") || url.endsWith("/dormindo.gif"));
+    void registroFalaEComemora() {
+        MessageEmbed e = Visual.registro(-13_240, "Mercado", null, HOJE, 1, 0, null, MEIO_DIA);
+
+        assertTrue(e.getDescription().startsWith("Registrado: **R$ 132,40** em Mercado."));
+        assertTrue(broto(e).endsWith("/sucesso.gif"));
+    }
+
+    @Test
+    void registroDeMadrugadaPegaOTinoDormindo() {
+        MessageEmbed e = Visual.registro(-13_240, "Mercado", null, HOJE, 1, 0, null, LocalTime.of(3, 0));
+
+        assertTrue(e.getDescription().startsWith("Hm… anotado. Vai dormir também."));
+        assertTrue(broto(e).endsWith("/dormindo.gif"));
     }
 
     @Test

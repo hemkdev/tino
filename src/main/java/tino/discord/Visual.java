@@ -86,15 +86,17 @@ final class Visual {
 
     static MessageEmbed registro(long centavos, String categoria, String descricao,
                                  LocalDate data, long id,
-                                 long acumulado, String categoriaNova) {
+                                 long acumulado, String categoriaNova, LocalTime agora) {
         boolean gasto = centavos < 0;
+        Estado estado = Estado.aoRegistrar(agora);
+        String valor = "**%s** em %s.".formatted(Dinheiro.formatar(Math.abs(centavos)), categoria);
         EmbedBuilder e = new EmbedBuilder()
                 .setColor(gasto ? VERMELHO : VERDE)
-                .setAuthor(gasto ? "Anotado!" : "Entrou!")
-                .setDescription("## %s\n%s %s".formatted(
-                        Dinheiro.formatar(Math.abs(centavos)), emoji(categoria), categoria))
+                .setDescription(estado == Estado.DORMINDO
+                        ? "Hm… anotado. Vai dormir também.\n" + valor
+                        : "Registrado: " + valor)
                 .setFooter("#%d · %s".formatted(id, data.format(DIA_MES)))
-                .setThumbnail(Estado.aoRegistrar(LocalTime.now()).url());
+                .setThumbnail(estado.url());
 
         if (descricao != null && !descricao.isBlank()) {
             e.appendDescription("\n_" + descricao + "_");
@@ -104,7 +106,7 @@ final class Visual {
                     gasto ? "são" : "entraram", Dinheiro.formatar(acumulado)));
         }
         if (categoriaNova != null) {
-            e.appendDescription("\n💡 criei **%s** — parece com **%s**, renomeie se foi engano"
+            e.appendDescription("\n💡 Criei a categoria **%s**. Se era **%s**, toque em Editar."
                     .formatted(categoria, categoriaNova));
         }
         return e.build();
@@ -112,7 +114,7 @@ final class Visual {
 
     static MessageEmbed registro(Tino.Registro r) {
         return registro(r.centavos(), r.categoria(), r.descricao(), r.data(), r.id(),
-                r.acumulado(), r.parecida());
+                r.acumulado(), r.parecida(), LocalTime.now());
     }
 
     /** Pergunta antes de gravar: quase sempre é {@code 5000} digitado no lugar de {@code 50,00}. */
@@ -122,9 +124,15 @@ final class Visual {
                 .setColor(AMARELO)
                 .setThumbnail(Estado.ALERTA.url())
                 .setDescription("%s em %s? Seu normal é %s.".formatted(
-                        Dinheiro.formatar(Math.abs(p.centavos())), p.categoria(),
-                        Dinheiro.formatar(f.tipico())))
+                        redondo(Math.abs(p.centavos())), p.categoria(),
+                        redondo(f.tipico()).substring("R$ ".length())))
                 .build();
+    }
+
+    /** "R$ 4.800" em vez de "R$ 4.800,00": numa pergunta, os centavos só atrapalham. */
+    private static String redondo(long centavos) {
+        String s = Dinheiro.formatar(centavos);
+        return s.endsWith(",00") ? s.substring(0, s.length() - 3) : s;
     }
 
     static ActionRow confirmacao(String usuario, String chave) {
@@ -384,7 +392,7 @@ final class Visual {
                 .setTitle("👋 Oi, eu sou o Tino!")
                 .setThumbnail(Estado.OCIOSO.url())
                 .setDescription("""
-                        Me manda o que você gastou e eu anoto. Assim, sem comando:
+                        Me manda um gasto que eu anoto. Assim, sem comando:
                         ```
                         50 mercado
                         50 mercado 07/08 pão e leite
@@ -451,7 +459,12 @@ final class Visual {
 
     static MessageEmbed aviso(String mensagem) {
         return new EmbedBuilder().setColor(AMARELO).setThumbnail(Estado.ERRO.url())
-                .setDescription("⚠️ " + mensagem).build();
+                .setDescription("⚠️ " + maiuscula(mensagem)).build();
+    }
+
+    /** As mensagens do núcleo vêm em minúscula, para compor frase; aqui viram frase solta. */
+    private static String maiuscula(String s) {
+        return s == null || s.isEmpty() ? "" : Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 
     static MessageEmbed erro(String mensagem) {
