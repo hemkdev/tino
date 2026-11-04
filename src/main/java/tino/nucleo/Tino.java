@@ -33,7 +33,7 @@ public final class Tino {
 
     /** Um lançamento gravado, com o contexto que ajuda a pegar erro de digitação. */
     public record Registro(long id, long centavos, String categoria, String descricao, LocalDate data,
-                    long acumulado, long tipico, String parecida) {}
+                           long acumulado, String parecida) {}
 
     public record Pagina(Periodo periodo, List<Lancamento> itens, int offset,
                   boolean temProxima) {}
@@ -88,40 +88,77 @@ public final class Tino {
 
     // ------------------------------------------------------------ lançamentos
 
-    /** Valor negativo é gasto, positivo é ganho. Categoria nula vai para Outros. */
-    public synchronized Registro registrar(String usuario, long centavos, String categoria,
-                                    String descricao, LocalDate data) throws SQLException {
-        String nome = categoria == null || categoria.isBlank() ? PADRAO : categoria;
-        boolean ganho = centavos > 0;
-        String tipo = ganho ? Financas.GANHO : Financas.GASTO;
+    /**
+     * Grava o pedido, a não ser que o valor fuja muito do normal da pessoa: aí devolve
+     * {@link Evento.ForaDoNormal} sem gravar nada, para o canal confirmar antes.
+     */
+    public synchronized Evento lancar(String usuario, Pedido p) throws SQLException {
+        long tipico = Financas.valorTipico(conexao, usuario, categoriaId(usuario, p), p.data());
+        return foraDoNormal(p.centavos(), tipico)
+                ? new Evento.ForaDoNormal(p, tipico)
+                : new Evento.Registrado(registrar(usuario, p));
+    }
+
+    /** Texto livre: "50 mercado, 30 uber, +3000 salário". Um evento por item. */
+    public synchronized List<Evento> lancar(String usuario, String texto, LocalDate hoje)
+            throws SQLException {
+        // As categorias existentes permitem reconhecer nomes com espaço sem exigir aspas.
+        List<Entrada.Item> itens = Entrada.lista(texto,
+                Set.copyOf(Financas.caminhos(conexao, usuario, null, "", 200)));
+        // ponytail: sem transação; um item inválido no meio deixa os anteriores gravados.
+        List<Evento> eventos = new ArrayList<>();
+        for (Entrada.Item item : itens) {
+            eventos.add(lancar(usuario, new Pedido(item.ganho() ? item.centavos() : -item.centavos(),
+                    item.categoria(), item.descricao(), Entrada.data(item.data(), hoje))));
+        }
+        return eventos;
+    }
+
+    /** Grava sem perguntar: depois de a pessoa confirmar, ou quando o canal já decidiu. */
+    public synchronized Registro registrar(String usuario, Pedido p) throws SQLException {
+        String nome = nome(p);
+        String tipo = tipo(p);
 
         // Antes de criar: se não existe mas há uma parecida, vale avisar do provável engano.
         String parecida = Financas.caminhos(conexao, usuario, tipo, nome, 1).isEmpty()
                 ? Financas.parecida(conexao, usuario, nome, tipo).orElse(null)
                 : null;
 
-        long categoriaId = Financas.categoriaId(conexao, usuario, nome, tipo);
-        long tipico = Financas.valorTipico(conexao, usuario, categoriaId, data);
-        long id = Financas.registrar(conexao, usuario, centavos, categoriaId, descricao, data);
+        long categoriaId = categoriaId(usuario, p);
+        long id = Financas.registrar(conexao, usuario, p.centavos(), categoriaId, p.descricao(), p.data());
         long acumulado = Financas.totalDaCategoria(conexao, usuario, categoriaId,
-                Periodo.de("mes", data), ganho);
+                Periodo.de("mes", p.data()), p.centavos() > 0);
 
-        return new Registro(id, centavos, nome, descricao, data, acumulado, tipico, parecida);
+        return new Registro(id, p.centavos(), nome, p.descricao(), p.data(), acumulado, parecida);
     }
 
-    /** Texto livre: "50 mercado, 30 uber, +3000 salário". */
-    public synchronized List<Registro> lancar(String usuario, String texto, LocalDate hoje)
-            throws SQLException {
-        // As categorias existentes permitem reconhecer nomes com espaço sem exigir aspas.
-        List<Entrada.Item> itens = Entrada.lista(texto,
-                Set.copyOf(Financas.caminhos(conexao, usuario, null, "", 200)));
-        // ponytail: sem transação; um item inválido no meio deixa os anteriores gravados.
-        List<Registro> registros = new ArrayList<>();
-        for (Entrada.Item item : itens) {
-            registros.add(registrar(usuario, item.ganho() ? item.centavos() : -item.centavos(),
-                    item.categoria(), item.descricao(), Entrada.data(item.data(), hoje)));
-        }
-        return registros;
+    public synchronized Registro registrar(String usuario, long centavos, String categoria,
+                                           String descricao, LocalDate data) throws SQLException {
+        return registrar(usuario, new Pedido(centavos, categoria, descricao, data));
+    }
+
+    /**
+     * Mais de 5x a média recente costuma ser dedo gordo. Sem histórico ({@code tipico}
+     * zero) nada é fora do normal: qualquer valor pareceria atípico.
+     */
+    static boolean foraDoNormal(long centavos, long tipico) {
+        return tipico > 0 && Math.abs(centavos) > tipico * 5;
+    }
+
+    private static String nome(Pedido p) {
+        return p.categoria() == null || p.categoria().isBlank() ? PADRAO : p.categoria();
+    }
+
+    private static String tipo(Pedido p) {
+        return p.centavos() > 0 ? Financas.GANHO : Financas.GASTO;
+    }
+
+    /**
+     * Cria a categoria se ainda não existe. Categoria nova não tem histórico, então
+     * nunca é fora do normal: chamar isto antes de decidir não deixa categoria órfã.
+     */
+    private long categoriaId(String usuario, Pedido p) throws SQLException {
+        return Financas.categoriaId(conexao, usuario, nome(p), tipo(p));
     }
 
     /** Mantém o sinal original: edição não transforma gasto em ganho. */
@@ -135,7 +172,7 @@ public final class Tino {
         long categoriaId = Financas.categoriaId(conexao, usuario, categoria,
                 ganho ? Financas.GANHO : Financas.GASTO);
         Financas.atualizar(conexao, usuario, id, comSinal, categoriaId, descricao, data);
-        return new Registro(id, comSinal, categoria, descricao, data, 0, 0, null);
+        return new Registro(id, comSinal, categoria, descricao, data, 0, null);
     }
 
     public synchronized Optional<Lancamento> buscar(String usuario, long id) throws SQLException {

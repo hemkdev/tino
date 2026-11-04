@@ -1,5 +1,7 @@
 package tino.discord;
 
+import tino.nucleo.Evento;
+import tino.nucleo.Pedido;
 import tino.nucleo.Dinheiro;
 import tino.nucleo.Lancamento;
 import tino.nucleo.Linha;
@@ -83,7 +85,7 @@ final class Visual {
 
     static MessageEmbed registro(long centavos, String categoria, String descricao,
                                  java.time.LocalDate data, long id,
-                                 long acumulado, long tipico, String categoriaNova) {
+                                 long acumulado, String categoriaNova) {
         boolean gasto = centavos < 0;
         EmbedBuilder e = new EmbedBuilder()
                 .setColor(gasto ? VERMELHO : VERDE)
@@ -99,12 +101,6 @@ final class Visual {
             e.appendDescription("\n\nJá %s **%s** aqui no mês".formatted(
                     gasto ? "são" : "entraram", Dinheiro.formatar(acumulado)));
         }
-        // Só alerta com histórico suficiente: um valor 5x acima do normal costuma
-        // ser dedo gordo (5000 no lugar de 50,00).
-        if (tipico > 0 && Math.abs(centavos) > tipico * 5) {
-            e.appendDescription("\n⚠️ bem acima do de sempre por aqui (média %s) — confere aí, ou é só desfazer"
-                    .formatted(Dinheiro.formatar(tipico)));
-        }
         if (categoriaNova != null) {
             e.appendDescription("\n💡 criei **%s** — parece com **%s**, renomeie se foi engano"
                     .formatted(categoria, categoriaNova));
@@ -114,7 +110,24 @@ final class Visual {
 
     static MessageEmbed registro(Tino.Registro r) {
         return registro(r.centavos(), r.categoria(), r.descricao(), r.data(), r.id(),
-                r.acumulado(), r.tipico(), r.parecida());
+                r.acumulado(), r.parecida());
+    }
+
+    /** Pergunta antes de gravar: quase sempre é {@code 5000} digitado no lugar de {@code 50,00}. */
+    static MessageEmbed foraDoNormal(Evento.ForaDoNormal f) {
+        Pedido p = f.pedido();
+        return new EmbedBuilder()
+                .setColor(AMARELO)
+                .setDescription("%s em %s? Seu normal é %s.".formatted(
+                        Dinheiro.formatar(Math.abs(p.centavos())), p.categoria(),
+                        Dinheiro.formatar(f.tipico())))
+                .build();
+    }
+
+    static ActionRow confirmacao(String usuario, String chave) {
+        return ActionRow.of(
+                Button.primary("confirmar:%s:%s".formatted(usuario, chave), "Tá certo"),
+                Button.secondary("corrigir:%s:%s".formatted(usuario, chave), "Corrigir"));
     }
 
     static MessageEmbed lote(List<Tino.Registro> registros) {

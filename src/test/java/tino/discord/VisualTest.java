@@ -1,7 +1,9 @@
 package tino.discord;
 
+import tino.nucleo.Evento;
 import tino.nucleo.Lancamento;
 import tino.nucleo.Linha;
+import tino.nucleo.Pedido;
 import tino.nucleo.Periodo;
 import tino.nucleo.Resumo;
 import tino.nucleo.Tino;
@@ -79,8 +81,8 @@ class VisualTest {
 
     @Test
     void registroDeGastoEDeGanhoUsamCoresDiferentes() {
-        MessageEmbed gasto = Visual.registro(-5_000, "Lazer", null, HOJE, 12, 0, 0, null);
-        MessageEmbed ganho = Visual.registro(5_000, "Salário", null, HOJE, 13, 0, 0, null);
+        MessageEmbed gasto = Visual.registro(-5_000, "Lazer", null, HOJE, 12, 0, null);
+        MessageEmbed ganho = Visual.registro(5_000, "Salário", null, HOJE, 13, 0, null);
 
         assertNotNull(gasto.getColor());
         assertTrue(gasto.getColor().getRed() > gasto.getColor().getGreen());
@@ -90,7 +92,7 @@ class VisualTest {
 
     @Test
     void registroMostraDescricaoQuandoExiste() {
-        assertTrue(Visual.registro(-5_000, "Lazer", "cinema", HOJE, 1, 0, 0, null)
+        assertTrue(Visual.registro(-5_000, "Lazer", "cinema", HOJE, 1, 0, null)
                 .getDescription().contains("cinema"));
     }
 
@@ -130,28 +132,31 @@ class VisualTest {
 
     @Test
     void registroMostraAcumuladoDoMes() {
-        assertTrue(Visual.registro(-5_000, "Lazer", null, HOJE, 1, 84_000, 0, null)
+        assertTrue(Visual.registro(-5_000, "Lazer", null, HOJE, 1, 84_000, null)
                 .getDescription().contains("R$ 840,00"));
     }
 
     @Test
-    void registroAlertaValorMuitoAcimaDoNormal() {
-        String d = Visual.registro(-500_000, "Alimentação", null, HOJE, 1, 0, 8_000, null)
-                .getDescription();
+    void foraDoNormalPerguntaComOValorDeReferencia() {
+        String d = Visual.foraDoNormal(new Evento.ForaDoNormal(
+                new Pedido(-480_000, "Moradia", null, HOJE), 180_000)).getDescription();
 
-        assertTrue(d.contains("acima do de sempre"));
-        assertTrue(d.contains("R$ 80,00"));      // mostra a média de referência
+        assertTrue(d.contains("R$ 4.800,00 em Moradia?"));
+        assertTrue(d.contains("Seu normal é R$ 1.800,00"));
     }
 
     @Test
-    void registroNaoAlertaSemHistorico() {
-        assertFalse(Visual.registro(-500_000, "Alimentação", null, HOJE, 1, 0, 0, null)
-                .getDescription().contains("acima do normal"));
+    void confirmacaoTemTaCertoECorrigirComIdCurto() {
+        var botoes = Visual.confirmacao("1".repeat(20), "999999").getButtons();
+
+        assertEquals("Tá certo", botoes.get(0).getLabel());
+        assertEquals("Corrigir", botoes.get(1).getLabel());
+        assertTrue(botoes.get(0).getId().length() <= 100);
     }
 
     @Test
     void registroAvisaCategoriaParecidaRecemCriada() {
-        assertTrue(Visual.registro(-5_000, "Transprte", null, HOJE, 1, 0, 0, "Transporte")
+        assertTrue(Visual.registro(-5_000, "Transprte", null, HOJE, 1, 0, "Transporte")
                 .getDescription().contains("Transporte"));
     }
 

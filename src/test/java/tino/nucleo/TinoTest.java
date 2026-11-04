@@ -11,6 +11,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -65,11 +66,11 @@ class TinoTest {
 
     @Test
     void lancarGravaCadaItemComSeuSinal() throws SQLException {
-        List<Tino.Registro> rs = tino.lancar(EU, "50 mercado, +3000 salário", HOJE);
+        List<Evento> eventos = tino.lancar(EU, "50 mercado, +3000 salário", HOJE);
 
-        assertEquals(2, rs.size());
-        assertEquals(-5_000, rs.get(0).centavos());
-        assertEquals(300_000, rs.get(1).centavos());
+        assertEquals(2, eventos.size());
+        assertEquals(-5_000, registrado(eventos.get(0)).centavos());
+        assertEquals(300_000, registrado(eventos.get(1)).centavos());
         assertEquals(2, tino.pagina(EU, "mes", 0, HOJE).itens().size());
     }
 
@@ -196,5 +197,66 @@ class TinoTest {
     @Test
     void exportarSemLancamentoTemQuantidadeZero() throws SQLException {
         assertEquals(0, tino.exportar(EU, "mes", HOJE).quantidade());
+    }
+
+    // ------------------------------------------------------- fora do normal
+
+    private static Tino.Registro registrado(Evento e) {
+        return assertInstanceOf(Evento.Registrado.class, e).registro();
+    }
+
+    private void historico(String categoria, long centavos, int vezes) throws SQLException {
+        for (int i = 0; i < vezes; i++) {
+            tino.registrar(EU, centavos, categoria, null, HOJE);
+        }
+    }
+
+    @Test
+    void valorMuitoAcimaDoNormalNaoGravaSemConfirmar() throws SQLException {
+        historico("Mercado", -5_000, 3);
+
+        Evento e = tino.lancar(EU, new Pedido(-500_000, "Mercado", null, HOJE));
+
+        Evento.ForaDoNormal fora = assertInstanceOf(Evento.ForaDoNormal.class, e);
+        assertEquals(5_000, fora.tipico());
+        assertEquals(-500_000, fora.pedido().centavos());
+        assertEquals(3, tino.pagina(EU, "mes", 0, HOJE).itens().size());   // nada gravado
+    }
+
+    @Test
+    void confirmarGravaOPedidoForaDoNormal() throws SQLException {
+        historico("Mercado", -5_000, 3);
+        Pedido p = assertInstanceOf(Evento.ForaDoNormal.class,
+                tino.lancar(EU, new Pedido(-500_000, "Mercado", null, HOJE))).pedido();
+
+        Tino.Registro r = tino.registrar(EU, p);
+
+        assertEquals(-500_000, r.centavos());
+        assertEquals(4, tino.pagina(EU, "mes", 0, HOJE).itens().size());
+    }
+
+    @Test
+    void valorDentroDoNormalGravaDireto() throws SQLException {
+        historico("Mercado", -5_000, 3);
+
+        assertEquals(-20_000, registrado(tino.lancar(EU, new Pedido(-20_000, "Mercado", null, HOJE))).centavos());
+    }
+
+    @Test
+    void semHistoricoNadaEhForaDoNormal() throws SQLException {
+        historico("Mercado", -5_000, 2);   // menos de 3 não forma padrão
+
+        registrado(tino.lancar(EU, new Pedido(-500_000, "Mercado", null, HOJE)));
+    }
+
+    @Test
+    void lancarTextoSeguraSoOItemForaDoNormal() throws SQLException {
+        historico("Mercado", -5_000, 3);
+
+        List<Evento> eventos = tino.lancar(EU, "30 uber, 5000 mercado", HOJE);
+
+        registrado(eventos.get(0));
+        assertInstanceOf(Evento.ForaDoNormal.class, eventos.get(1));
+        assertEquals(4, tino.pagina(EU, "mes", 0, HOJE).itens().size());
     }
 }

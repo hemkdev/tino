@@ -2,7 +2,9 @@ package tino.discord;
 
 import tino.nucleo.Dinheiro;
 import tino.nucleo.Entrada;
+import tino.nucleo.Evento;
 import tino.nucleo.Lancamento;
+import tino.nucleo.Pedido;
 import tino.nucleo.Tino;
 import tino.nucleo.Tipo;
 import net.dv8tion.jda.api.JDA;
@@ -31,8 +33,12 @@ import org.slf4j.LoggerFactory;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /** Canal Discord: traduz eventos do JDA em chamadas ao {@link Tino} e respostas em embed. */
 public class Bot extends ListenerAdapter {
@@ -40,6 +46,11 @@ public class Bot extends ListenerAdapter {
     private static final Logger LOG = LoggerFactory.getLogger(Bot.class);
 
     private final Tino tino;
+
+    // ponytail: pedidos à espera de [Tá certo] ficam em memória. Reiniciar o bot os perde
+    // (o botão responde que expirou) e um aviso nunca respondido fica até o próximo boot.
+    private final Map<String, Pedido> pendentes = new ConcurrentHashMap<>();
+    private final AtomicLong proximaChave = new AtomicLong();
 
     private Bot(Tino tino) {
         this.tino = tino;
@@ -164,25 +175,32 @@ public class Bot extends ListenerAdapter {
             }
 
             tino.preparar(usuario);
-            Resposta resposta = switch (evento.getName()) {
-                case "gasto" -> registrar(evento, usuario, false);
-                case "ganho" -> registrar(evento, usuario, true);
+            List<Resposta> respostas = switch (evento.getName()) {
+                case "gasto" -> List.of(registrar(evento, usuario, false));
+                case "ganho" -> List.of(registrar(evento, usuario, true));
                 case "lancar" -> lote(usuario, evento.getOption("texto").getAsString());
-                case "resumo" -> Resposta.de(resumo(usuario, periodo(evento)));
-                case "lancamentos" -> pagina(usuario, periodo(evento), 0);
-                case "remover" -> Resposta.de(remover(evento, usuario));
-                case "categoria" -> Resposta.de(categoria(evento, usuario));
-                case "fixo" -> Resposta.de(fixo(evento, usuario));
-                case "ajuda" -> Resposta.de(Visual.ajuda());
-                default -> Resposta.de(Visual.erro("comando desconhecido"));
+                default -> List.of(comando(evento, usuario));
             };
-            responder(evento, resposta);
+            respostas.forEach(r -> responder(evento, r));
         } catch (IllegalArgumentException e) {
             evento.getHook().sendMessageEmbeds(Visual.aviso(e.getMessage())).queue();
         } catch (Exception e) {
             LOG.error("falha em /{}", evento.getName(), e);   // sem valores nem descrições no log
             evento.getHook().sendMessageEmbeds(Visual.erro("deu erro aqui, tenta de novo")).queue();
         }
+    }
+
+    /** Comandos de uma resposta só. */
+    private Resposta comando(SlashCommandInteractionEvent evento, String usuario) throws SQLException {
+        return switch (evento.getName()) {
+            case "resumo" -> Resposta.de(resumo(usuario, periodo(evento)));
+            case "lancamentos" -> pagina(usuario, periodo(evento), 0);
+            case "remover" -> Resposta.de(remover(evento, usuario));
+            case "categoria" -> Resposta.de(categoria(evento, usuario));
+            case "fixo" -> Resposta.de(fixo(evento, usuario));
+            case "ajuda" -> Resposta.de(Visual.ajuda());
+            default -> Resposta.de(Visual.erro("comando desconhecido"));
+        };
     }
 
     private void responder(SlashCommandInteractionEvent evento, Resposta resposta) {
@@ -208,17 +226,19 @@ public class Bot extends ListenerAdapter {
         try {
             String usuario = tino.conta("discord", evento.getAuthor().getId());
             boolean primeiraVez = tino.preparar(usuario);
-            Resposta resposta = lancamento
+            List<Resposta> respostas = lancamento
                     ? lote(usuario, texto)
-                    : responderConsulta(usuario, consulta);
+                    : List.of(responderConsulta(usuario, consulta));
             if (primeiraVez) {
                 evento.getMessage().replyEmbeds(Visual.boasVindas()).queue();
             }
-            var acao = evento.getMessage().replyEmbeds(resposta.embed());
-            if (resposta.botoes() != null) {
-                acao = acao.setComponents(resposta.botoes());
+            for (Resposta resposta : respostas) {
+                var acao = evento.getMessage().replyEmbeds(resposta.embed());
+                if (resposta.botoes() != null) {
+                    acao = acao.setComponents(resposta.botoes());
+                }
+                acao.queue();
             }
-            acao.queue();
         } catch (IllegalArgumentException e) {
             evento.getMessage().replyEmbeds(Visual.aviso(e.getMessage())).queue();
         } catch (Exception e) {
@@ -264,6 +284,20 @@ public class Bot extends ListenerAdapter {
                         return;
                     }
                     evento.replyModal(Visual.edicao(partes[1], alvo.get())).queue();
+                }
+                case "confirmar", "corrigir" -> {
+                    Pedido pedido = pendentes.remove(partes[2]);
+                    if (pedido == null) {
+                        evento.editMessageEmbeds(Visual.aviso("Esse aviso expirou. Manda o lançamento de novo."))
+                                .setComponents().queue();
+                    } else if (partes[0].equals("confirmar")) {
+                        Tino.Registro r = tino.registrar(partes[1], pedido);
+                        evento.editMessageEmbeds(Visual.registro(r))
+                                .setComponents(Visual.acoesDoRegistro(partes[1], r.id())).queue();
+                    } else {
+                        evento.editMessageEmbeds(Visual.ok("Não anotei. Manda de novo com o valor certo."))
+                                .setComponents().queue();
+                    }
                 }
                 case "pag" -> {
                     Resposta r = pagina(partes[1], partes[2], Integer.parseInt(partes[3]));
@@ -338,8 +372,21 @@ public class Bot extends ListenerAdapter {
             throws SQLException {
         long valor = Dinheiro.paraCentavos(evento.getOption("valor").getAsString());
         LocalDate data = Entrada.data(texto(evento, "data"), LocalDate.now());
-        return registro(usuario, tino.registrar(usuario, ganho ? valor : -valor,
-                texto(evento, "categoria"), texto(evento, "descricao"), data));
+        return resposta(usuario, tino.lancar(usuario, new Pedido(ganho ? valor : -valor,
+                texto(evento, "categoria"), texto(evento, "descricao"), data)));
+    }
+
+    private Resposta resposta(String usuario, Evento evento) {
+        return switch (evento) {
+            case Evento.Registrado(Tino.Registro r) -> registro(usuario, r);
+            case Evento.ForaDoNormal f -> perguntar(usuario, f);
+        };
+    }
+
+    private Resposta perguntar(String usuario, Evento.ForaDoNormal f) {
+        String chave = Long.toString(proximaChave.incrementAndGet(), 36);
+        pendentes.put(chave, f.pedido());
+        return new Resposta(Visual.foraDoNormal(f), Visual.confirmacao(usuario, chave));
     }
 
     private static Resposta registro(String usuario, Tino.Registro r) {
@@ -347,11 +394,23 @@ public class Bot extends ListenerAdapter {
     }
 
     /** Vários lançamentos numa tacada, tanto por /lancar quanto por texto solto na DM. */
-    private Resposta lote(String usuario, String texto) throws SQLException {
-        List<Tino.Registro> registros = tino.lancar(usuario, texto, LocalDate.now());
-        return registros.size() == 1
-                ? registro(usuario, registros.get(0))
-                : Resposta.de(Visual.lote(registros));
+    private List<Resposta> lote(String usuario, String texto) throws SQLException {
+        List<Tino.Registro> registrados = new ArrayList<>();
+        List<Resposta> perguntas = new ArrayList<>();
+        for (Evento e : tino.lancar(usuario, texto, LocalDate.now())) {
+            switch (e) {
+                case Evento.Registrado(Tino.Registro r) -> registrados.add(r);
+                case Evento.ForaDoNormal f -> perguntas.add(perguntar(usuario, f));
+            }
+        }
+        List<Resposta> respostas = new ArrayList<>();
+        if (registrados.size() == 1) {
+            respostas.add(registro(usuario, registrados.getFirst()));
+        } else if (registrados.size() > 1) {
+            respostas.add(Resposta.de(Visual.lote(registrados)));
+        }
+        respostas.addAll(perguntas);
+        return respostas;
     }
 
     private MessageEmbed resumo(String usuario, String tipoPeriodo) throws SQLException {
