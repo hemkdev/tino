@@ -1,0 +1,460 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="tino" data-estado="ocioso" width="280" height="280" viewBox="-10 -16 140 140" role="img" aria-label="Tino"><style>.tino { overflow: visible; cursor: pointer; }
+.tino * { transform-box: fill-box; transform-origin: center center; }
+.tino .corpo { transform-box: view-box; transform-origin: 60px 104px; }
+.tino .broto { transform-box: view-box; transform-origin: 60px 33px; }
+.tino .folha-e { transform-origin: 100% 100%; }
+.tino .folha-d { transform-origin: 0% 100%; }
+.tino .fx, .tino .olhos-felizes, .tino .olhos-fechados, .tino .boca { display: none; }
+.tino .boca-base { display: inline; }
+.tino .bochecha { opacity: 0; transition: opacity 0.3s; }
+.tino .segue { transform: translate(var(--ox, 0px), var(--oy, 0px)); transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1); }
+.tino[data-estado="ocioso"] .corpo { animation: 6s ease-in-out 0s infinite normal none running respira; }
+.tino[data-estado="ocioso"] .sombra { animation: 6s ease-in-out 0s infinite normal none running sombra; }
+.tino[data-estado="ocioso"] .olhar { animation: 6s ease-in-out 0s infinite normal none running olha; }
+.tino[data-estado="ocioso"] .pisca { animation: 6s linear 0s infinite normal none running pisca; }
+.tino[data-estado="ocioso"] .broto { animation: 6s ease-in-out 0.15s infinite normal none running balanca-broto; }
+.tino[data-estado="ocioso"] .folha-e { animation: 3s ease-in-out 0s infinite normal none running folha-e; }
+.tino[data-estado="ocioso"] .folha-d { animation: 3.4s ease-in-out 0s infinite normal none running folha-d; }
+.tino[data-estado="ouvindo"] .corpo { animation: 2.4s ease-in-out 0s infinite normal none running escuta; }
+.tino[data-estado="ouvindo"] .olhar { transform: translate(3px, -1.5px); }
+.tino[data-estado="ouvindo"] .pisca { animation: 2.4s linear 0s infinite normal none running pisca-longa; }
+.tino[data-estado="ouvindo"] .broto { transform: rotate(8deg); }
+.tino[data-estado="ouvindo"] .folha-d { animation: 2.4s ease-in-out 0s infinite normal none running folha-ouve; }
+.tino[data-estado="ouvindo"] .fx-ouvindo { display: inline; }
+.tino[data-estado="ouvindo"] .o0 { animation: 2.4s ease-in 0s infinite normal none running onda; }
+.tino[data-estado="ouvindo"] .o1 { animation: 2.4s ease-in -0.8s infinite normal none running onda; }
+.tino[data-estado="ouvindo"] .o2 { animation: 2.4s ease-in -1.6s infinite normal none running onda; }
+@keyframes escuta { 
+  0%, 100% { transform: rotate(4deg); }
+  25% { transform: rotate(6deg) translateY(-1.5px); }
+  50% { transform: rotate(3.5deg); }
+  75% { transform: rotate(5.5deg) translateY(-1px); }
+}
+@keyframes folha-ouve { 
+  0%, 100% { transform: rotate(10deg); }
+  30%, 60% { transform: rotate(18deg) scale(1.08); }
+}
+@keyframes onda { 
+  0% { opacity: 0; transform: translateX(14px) scale(1.25); }
+  30% { opacity: 1; }
+  85% { opacity: 0.9; transform: translateX(-2px) scale(0.7); }
+  100% { opacity: 0; transform: translateX(-4px) scale(0.6); }
+}
+.tino[data-estado="pensando"] .corpo { animation: 4s ease-in-out 0s infinite normal none running pondera; }
+.tino[data-estado="pensando"] .olhar { animation: 4s ease-in-out 0s infinite normal none running olha-cima; }
+.tino[data-estado="pensando"] .pisca { animation: 4s linear 0s infinite normal none running pisca-longa; }
+.tino[data-estado="pensando"] .broto { animation: 4s ease-in-out 0.2s infinite normal none running balanca-broto; }
+.tino[data-estado="pensando"] .fx-pensando { display: inline; }
+.tino[data-estado="pensando"] .b0 { animation: 4s ease-out 0s infinite normal none running bolha; }
+.tino[data-estado="pensando"] .b1 { animation: 4s ease-out 0.35s infinite normal none running bolha; }
+.tino[data-estado="pensando"] .b2 { animation: 4s ease-out 0.7s infinite normal none running bolha; }
+.tino[data-estado="escrevendo"] .corpo { animation: 0.8s ease-in-out 0s infinite normal none running digita; }
+.tino[data-estado="escrevendo"] .olhar { animation: 1.6s ease-in-out 0s infinite normal none running le; }
+.tino[data-estado="escrevendo"] .broto { animation: 1.6s ease-in-out 0.1s infinite normal none running balanca-broto; }
+.tino[data-estado="escrevendo"] .fx-escrevendo { display: inline; }
+.tino[data-estado="escrevendo"] .p0 { animation: 0.9s ease-in-out 0s infinite normal none running tecla; }
+.tino[data-estado="escrevendo"] .p1 { animation: 0.9s ease-in-out 0.15s infinite normal none running tecla; }
+.tino[data-estado="escrevendo"] .p2 { animation: 0.9s ease-in-out 0.3s infinite normal none running tecla; }
+.tino[data-estado="sucesso"] .corpo { animation: 1.6s ease-in-out 0s infinite normal none running pulo; }
+.tino[data-estado="sucesso"] .sombra { animation: 1.6s ease-in-out 0s infinite normal none running sombra-pulo; }
+.tino[data-estado="sucesso"] .pisca { display: none; }
+.tino[data-estado="sucesso"] .olhos-felizes { display: inline; }
+.tino[data-estado="sucesso"] .boca-base { display: none; }
+.tino[data-estado="sucesso"] .boca-feliz { display: inline; }
+.tino[data-estado="sucesso"] .bochecha { opacity: 0.45; }
+.tino[data-estado="sucesso"] .segura { animation: 1.6s ease-in-out 0s infinite normal none running levanta; }
+.tino[data-estado="sucesso"] .broto { animation: 1.6s ease-in-out 0.12s infinite normal none running chacoalha-broto; }
+.tino[data-estado="sucesso"] .fx-sucesso { display: inline; }
+.tino[data-estado="sucesso"] .s0 { animation: 1.6s ease-out 0.25s infinite normal none running cintila; }
+.tino[data-estado="sucesso"] .s1 { animation: 1.6s ease-out 0.4s infinite normal none running cintila; }
+.tino[data-estado="sucesso"] .s2 { animation: 1.6s ease-out 0.55s infinite normal none running cintila; }
+.tino[data-estado="alerta"] .corpo { animation: 1.6s linear 0s infinite normal none running treme; }
+.tino[data-estado="alerta"] .olhar { transform: scale(1.2); }
+.tino[data-estado="alerta"] .pisca { animation: 3s linear 0s infinite normal none running pisca-longa; }
+.tino[data-estado="alerta"] .boca-base { display: none; }
+.tino[data-estado="alerta"] .boca-o { display: inline; }
+.tino[data-estado="alerta"] .broto { animation: 1.6s ease-in-out 0s infinite normal none running broto-ereto; }
+.tino[data-estado="alerta"] .fx-alerta { display: inline; }
+.tino[data-estado="alerta"] .exclama { animation: 1.6s ease-out 0s infinite normal none running exclama; }
+.tino[data-estado="erro"] .corpo { animation: 2.4s ease-in-out 0s infinite normal none running chacoalha; }
+.tino[data-estado="erro"] .olhar { transform: translateY(2px); }
+.tino[data-estado="erro"] .pisca { animation: 2.4s ease-in-out 0s infinite normal none running pisca-triste; }
+.tino[data-estado="erro"] .boca-base { display: none; }
+.tino[data-estado="erro"] .boca-onda { display: inline; }
+.tino[data-estado="erro"] .broto { animation: 2.4s ease-in-out 0s infinite normal none running murcha; }
+.tino[data-estado="erro"] .fx-erro { display: inline; }
+.tino[data-estado="erro"] .gota { animation: 2.4s ease-in 0s infinite normal none running escorre; }
+.tino[data-estado="dormindo"] .corpo { animation: 4s ease-in-out 0s infinite normal none running ronca; }
+.tino[data-estado="dormindo"] .pisca { display: none; }
+.tino[data-estado="dormindo"] .olhos-fechados { display: inline; }
+.tino[data-estado="dormindo"] .broto { transform: rotate(-34deg); }
+.tino[data-estado="dormindo"] .segue { transform: none; }
+.tino[data-estado="dormindo"] .fx-dormindo { display: inline; }
+.tino[data-estado="dormindo"] .z0 { animation: 3s ease-out 0s infinite normal none running zz; }
+.tino[data-estado="dormindo"] .z1 { animation: 3s ease-out 1s infinite normal none running zz; }
+.tino[data-estado="dormindo"] .z2 { animation: 3s ease-out 2s infinite normal none running zz; }
+.tino .crescimento { transform-box: view-box; transform-origin: 60px 33px; transform: scale(var(--tam, 1)); transition: transform 1s cubic-bezier(0.3, 1.4, 0.5, 1); }
+.tino .caule { transition: stroke-width 0.8s; }
+.tino .haste { transform-box: view-box; transform-origin: 60px 33px; transform: rotate(var(--mb, 0deg)); transition: transform 1.1s cubic-bezier(0.4, 0, 0.2, 1); }
+.tino .ponta { transform-box: view-box; transform-origin: 61px 20.5px; transform: rotate(var(--mp, 0deg)); transition: transform 1.3s cubic-bezier(0.4, 0, 0.2, 1) 0.1s; }
+.tino .dobra-e { transform-origin: 100% 70%; transform: rotate(var(--de, 0deg)); transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1) 0.25s; }
+.tino .dobra-d { transform-origin: 0% 66%; transform: rotate(var(--dd, 0deg)); transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1) 0.25s; }
+.tino .folha { fill: var(--folha, #7BDB7F); transition: fill 0.8s; }
+.tino .nerv { stroke: var(--nervura, #4FB85A); transition: stroke 0.8s; }
+.tino .fe { transform: scale(0); transition: transform 0.6s cubic-bezier(0.3, 1.6, 0.5, 1); }
+.tino .fe-e { transform-origin: 100% 50%; }
+.tino .fe-d { transform-origin: 0% 50%; }
+.tino .fe-topo { transform-origin: 0% 100%; }
+.tino .dobra-e, .tino .dobra-d { transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1) 0.25s, opacity 0.4s; }
+.tino[data-planta="brotando"] { --tam: 1.06; }
+.tino[data-planta="brotando"] .fe-e, .tino[data-planta="brotando"] .fe-d { transform: scale(1); }
+.tino[data-planta="muda"] { --tam: 1.16; }
+.tino[data-planta="muda"] .fe { transform: scale(1); }
+.tino .fe-topo2 { transform: scale(0); transition: transform 0.7s cubic-bezier(0.3, 1.6, 0.5, 1); }
+.tino .fe-topo2 { transform-origin: 100% 100%; }
+.tino[data-planta="frondosa"] { --tam: 1.26; --folha: #5FD86E; --nervura: #34A847; }
+.tino[data-planta="frondosa"] .fe, .tino[data-planta="frondosa"] .fe-topo2 { transform: scale(1.15); }
+.tino[data-planta="frondosa"] .dobra-e, .tino[data-planta="frondosa"] .dobra-d { transform: scale(1.12); }
+.tino[data-sede="leve"] { --folha: #9ED39A; --nervura: #6FAE6E; --mb: 4deg; --mp: 12deg; --de: -12deg; --dd: 14deg; }
+.tino[data-sede="forte"] { --folha: #B5C9A0; --nervura: #8DA27A; --mb: 9deg; --mp: 24deg; --de: -28deg; --dd: 30deg; }
+.tino[data-sede="forte"] .ponta { animation: 4s ease-in-out 1.5s infinite normal none running cansado; }
+@keyframes cansado { 
+  0%, 100% { transform: rotate(var(--mp)); }
+  50% { transform: rotate(calc(var(--mp) + 3deg)); }
+}
+.tino { transition: transform 1.6s cubic-bezier(0.4, 0, 0.2, 1); }
+.tino .espiada, .tino .boca-triste { display: none; }
+.tino[data-ausencia] .segue { transform: none; }
+.tino[data-ausencia="triste"] .boca-base, .tino[data-ausencia="triste"] .boca-reta, .tino[data-ausencia="longe"] .boca-base, .tino[data-ausencia="longe"] .boca-reta { display: none; }
+.tino[data-ausencia="triste"] .boca-triste, .tino[data-ausencia="longe"] .boca-triste { display: inline; }
+.tino[data-ausencia="triste"] .olhar { animation: auto ease 0s 1 normal none running none; transform: translateY(2px); }
+.tino[data-ausencia="triste"] .pisca, .tino[data-ausencia="longe"] .pisca { animation: 4s ease-in-out 0s infinite normal none running pisca-triste; }
+.tino[data-ausencia="triste"] .corpo { animation: 5s ease-in-out 0s infinite normal none running desanima; }
+.tino[data-ausencia="longe"] { transform: translate(22%, -4%) scale(0.74); }
+.tino[data-ausencia="longe"] .olhar { animation: 4s ease-in-out 0s infinite normal none running olha-pra-tras; }
+.tino[data-ausencia="longe"] .corpo { animation: 1.1s ease-in-out 0s infinite normal none running anda; }
+.tino[data-ausencia="costas"] { transform: translate(30%, -6%) scale(0.66); }
+.tino[data-ausencia="costas"] .rosto, .tino[data-ausencia="costas"] .segura { display: none; }
+.tino[data-ausencia="costas"] .moeda-atras { opacity: 1; transform: translate(-37px, -3px); }
+.tino[data-ausencia="costas"] .espiada { display: inline; animation: 7s ease-in-out 0s infinite normal none running espiada; }
+.tino[data-ausencia="costas"] .corpo { animation: 7s ease-in-out 0s infinite normal none running suspira; }
+.tino.volta .corpo { animation: 0.6s ease-out 0s 1 normal none running vira; }
+@keyframes desanima { 
+  0%, 100% { transform: translateY(1.5px) scale(1.02, 0.98); }
+  50% { transform: translateY(2.5px) scale(1.03, 0.97); }
+}
+@keyframes olha-pra-tras { 
+  0%, 30%, 100% { transform: translate(3.5px, 1px); }
+  45%, 75% { transform: translate(-4px, -0.5px); }
+}
+@keyframes anda { 
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg) translateY(-2px); }
+}
+@keyframes suspira { 
+  0%, 60%, 100% { transform: scale(1.02, 0.98); }
+  75% { transform: translateY(-2px) scale(0.98, 1.04); }
+  88% { transform: scale(1.03, 0.97); }
+}
+@keyframes espiada { 
+  0%, 62%, 82%, 100% { opacity: 0; transform: translateX(-3px); }
+  68%, 76% { opacity: 1; transform: none; }
+}
+@keyframes vira { 
+  0% { transform: scaleX(0.1); }
+  55% { transform: scaleX(1.08); }
+  100% { transform: none; }
+}
+.tino .gota-rega { opacity: 0; }
+.tino.regando .r0 { animation: 0.9s ease-in 0s 1 normal both running rega; }
+.tino.regando .r1 { animation: 0.9s ease-in 0.15s 1 normal both running rega; }
+.tino.regando .r2 { animation: 0.9s ease-in 0.3s 1 normal both running rega; }
+.tino.regando .r3 { animation: 0.9s ease-in 0.45s 1 normal both running rega; }
+.tino.regando .crescimento { animation: 0.7s ease-out 0.85s 1 normal both running rega-pulo; }
+.tino.regando .pisca { display: none; }
+.tino.regando .olhos-felizes { display: inline; }
+.tino.regando .boca-base { display: none; }
+.tino.regando .boca-feliz { display: inline; }
+@keyframes rega { 
+  0% { opacity: 0; transform: translateY(-8px); }
+  15% { opacity: 1; }
+  80% { opacity: 1; transform: translateY(18px); }
+  100% { opacity: 0; transform: translateY(22px) scale(1.4, 0.4); }
+}
+@keyframes rega-pulo { 
+  0%, 100% { transform: scale(var(--tam, 1)); }
+  40% { transform: scale(calc(var(--tam, 1) * .95), calc(var(--tam, 1) * 1.12)); }
+  70% { transform: scale(calc(var(--tam, 1) * 1.03), calc(var(--tam, 1) * .97)); }
+}
+.tino .moeda, .tino .maos, .tino .mao-e, .tino .mao-d, .tino .moeda-atras { transition: transform 0.45s cubic-bezier(0.3, 1.4, 0.5, 1), opacity 0.3s; }
+.tino .moeda-atras { opacity: 0; }
+.tino .boca-reta { display: none; }
+.tino[data-gesto] .segue { transform: none; }
+.tino[data-gesto="abraca"] .moeda { transform: scale(0.9); }
+.tino[data-gesto="abraca"] .mao-e { transform: translateX(3.5px) scale(1.08); }
+.tino[data-gesto="abraca"] .mao-d { transform: translateX(-3.5px) scale(1.08); }
+.tino[data-gesto="abraca"] .pisca { animation: auto ease 0s 1 normal none running none; transform: scaleY(0.45); }
+.tino[data-gesto="abraca"] .boca-base { display: none; }
+.tino[data-gesto="abraca"] .boca-reta { display: inline; }
+.tino[data-gesto="abraca"] .corpo { animation: 1.2s ease-in-out 0s infinite normal none running abraca; }
+.tino[data-gesto="esconde"] .moeda { animation: 0.8s ease-in-out 0s 1 normal forwards running esconde-frente; }
+.tino[data-gesto="esconde"] .moeda-atras { animation: 0.9s ease-out 0s 1 normal forwards running esconde-atras, 3.2s ease-in-out 1s infinite normal none running espia; }
+.tino[data-gesto="esconde"] .mao-d { animation: 0.9s ease-in-out 0s 1 normal forwards running mao-leva; }
+.tino[data-gesto="esconde"] .mao-e { transform: translate(-1px, 3px); }
+.tino[data-gesto="esconde"] .olhar { animation: 1s ease-in-out 0s 1 normal forwards running olha-moeda, 3s ease-in-out 1s infinite normal none running assobia-olho; }
+.tino[data-gesto="esconde"] .fx-assobio { display: inline; }
+.tino[data-gesto="esconde"] .n0 { animation: 2.4s ease-out 1s infinite normal both running nota; }
+.tino[data-gesto="esconde"] .n1 { animation: 2.4s ease-out 2.2s infinite normal both running nota; }
+.tino[data-gesto="devolve"] .moeda { animation: 0.7s ease-out 0s 1 normal none running devolve-frente; }
+.tino[data-gesto="devolve"] .mao-d { animation: 0.7s ease-out 0s 1 normal none running mao-devolve; }
+@keyframes esconde-frente { 
+  0% { transform: none; }
+  50% { transform: translate(24px, -3px) scale(0.86); opacity: 1; }
+  62%, 100% { transform: translate(28px, -6px) scale(0.8); opacity: 0; }
+}
+@keyframes esconde-atras { 
+  0%, 55% { opacity: 0; transform: translate(28px, -6px) scale(0.8); }
+  65% { opacity: 1; }
+  100% { opacity: 1; transform: translate(31px, -10px) rotate(18deg); }
+}
+@keyframes espia { 
+  0%, 100% { opacity: 1; transform: translate(31px, -10px) rotate(18deg); }
+  35% { opacity: 1; transform: translate(27px, -7px) rotate(10deg); }
+  55% { opacity: 1; transform: translate(33px, -12px) rotate(24deg); }
+}
+@keyframes mao-leva { 
+  0% { transform: none; }
+  50% { transform: translate(12px, -3px); }
+  100% { transform: translate(2px, 3px); }
+}
+@keyframes olha-moeda { 
+  0% { transform: none; }
+  35%, 55% { transform: translate(3.5px, 1.5px); }
+  100% { transform: translate(-3.5px, -2.5px); }
+}
+@keyframes nota { 
+  0% { opacity: 0; transform: scale(0.6); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(8px, -16px) rotate(15deg); }
+}
+@keyframes devolve-frente { 
+  0% { opacity: 0; transform: translate(28px, -6px) scale(0.8); }
+  45% { opacity: 1; transform: translate(22px, -3px) scale(0.88); }
+  100% { transform: none; }
+}
+@keyframes mao-devolve { 
+  0% { transform: translate(12px, -3px); }
+  100% { transform: none; }
+}
+.tino[data-gesto="esconde"] .boca-base { display: none; }
+.tino[data-gesto="esconde"] .boca-o { display: inline; transform: scale(0.7); }
+.tino[data-gesto="esconde"] .corpo { animation: 3s ease-in-out 0s infinite normal none running assobia; }
+.tino .rosto34 { display: none; }
+.tino[data-gesto="canto"] .olhar { animation: 0.45s cubic-bezier(0.2, 0, 0, 1) 0s 1 normal both running canto-olho; }
+.tino[data-gesto="canto"] .corpo { animation: 1.1s cubic-bezier(0.4, 0, 0.2, 1) 0s 1 normal both running aproxima, 5s ease-in-out 1.1s infinite normal none running perto; }
+.tino[data-gesto="canto"] .sombra { opacity: 0; transition: opacity 0.3s 0.4s; }
+.tino[data-gesto="canto"] .rosto { animation: 0.1s ease-in 0.5s 1 normal both running some; }
+.tino[data-gesto="canto"] .rosto34 { display: inline; animation: 0.3s ease-out 0.6s 1 normal both running vira-rosto; }
+.tino[data-gesto="canto"] .r34-olhos { animation: 5s linear 1.8s infinite normal none running pisca-longa; }
+.tino[data-gesto="canto"] .r34-sob { animation: 0.6s cubic-bezier(0.3, 1.5, 0.5, 1) 0.8s 1 normal both running sobe-sobrancelha; }
+.tino[data-gesto="canto"] .r34-boca { animation: 0.3s ease-out 1s 1 normal both running aparece; }
+.tino[data-gesto="canto"] .broto { animation: auto ease 0s 1 normal none running none; }
+.tino[data-gesto="canto"] .folha-d { animation: 0.8s cubic-bezier(0.3, 1.5, 0.5, 1) 0.85s 1 normal both running folha-ergue; }
+@keyframes canto-olho { 
+  0%, 55% { transform: none; }
+  75%, 100% { transform: translate(4.2px, 0.3px); }
+}
+@keyframes aproxima { 
+  0%, 30% { transform: none; }
+  36% { transform: scale(1.04, 0.96); }
+  45% { transform: none; }
+  100% { transform: translate(-4px, 24px) rotate(-6deg) scale(1.55); }
+}
+@keyframes perto { 
+  0%, 100% { transform: translate(-4px, 24px) rotate(-6deg) scale(1.55); }
+  50% { transform: translate(-4px, 24px) rotate(-6.6deg) scale(1.565, 1.54); }
+}
+@keyframes some { 
+  100% { opacity: 0; }
+}
+@keyframes vira-rosto { 
+  0% { opacity: 0; transform: translateX(-5px); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes sobe-sobrancelha { 
+  0% { opacity: 0; transform: translateY(3px) rotate(8deg); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes aparece { 
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes folha-ergue { 
+  0% { transform: none; }
+  100% { transform: rotate(-20deg); }
+}
+@keyframes abraca { 
+  0%, 100% { transform: scale(0.98, 1.01); }
+  50% { transform: scale(0.96, 1.02); }
+}
+@keyframes assobia { 
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg) translateY(-1px); }
+}
+@keyframes assobia-olho { 
+  0%, 100% { transform: translate(-3.5px, -2.5px); }
+  50% { transform: translate(-1.5px, -3.5px); }
+}
+.tino.amassa .corpo { animation: 0.37s ease-out 0s 1 normal none running amassa; }
+.tino.amassa .segura { animation: 0.5s ease-out 0s 1 normal none running moeda-pula; }
+@keyframes respira { 
+  0%, 50%, 100% { transform: none; }
+  25%, 75% { transform: translateY(-1.5px) scale(0.99, 1.015); }
+}
+@keyframes sombra { 
+  0%, 50%, 100% { transform: none; }
+  25%, 75% { transform: scaleX(0.94); }
+}
+@keyframes olha { 
+  0%, 15%, 70%, 100% { transform: none; }
+  22%, 34% { transform: translate(-2.5px, 0px); }
+  42%, 56% { transform: translate(2.5px, 0.5px); }
+}
+@keyframes pisca { 
+  0%, 58%, 62%, 86%, 90%, 93%, 100% { transform: none; }
+  60%, 88%, 91.5% { transform: scaleY(0.1); }
+}
+@keyframes balanca-broto { 
+  0%, 100% { transform: none; }
+  25% { transform: rotate(-3deg); }
+  50% { transform: rotate(1.5deg); }
+  75% { transform: rotate(-2deg); }
+}
+@keyframes folha-e { 
+  0%, 100% { transform: none; }
+  50% { transform: rotate(-7deg); }
+}
+@keyframes folha-d { 
+  0%, 100% { transform: none; }
+  50% { transform: rotate(7deg); }
+}
+@keyframes pondera { 
+  0%, 100% { transform: rotate(-2.5deg); }
+  50% { transform: rotate(2.5deg) translateY(-1.5px); }
+}
+@keyframes olha-cima { 
+  0%, 100% { transform: translate(3px, -4px); }
+  40% { transform: translate(3px, -5px); }
+  55%, 85% { transform: translate(-2.5px, -4.5px); }
+}
+@keyframes pisca-longa { 
+  0%, 80%, 84%, 100% { transform: none; }
+  82% { transform: scaleY(0.1); }
+}
+@keyframes bolha { 
+  0% { transform: scale(0); opacity: 0; }
+  15% { transform: scale(1.1); opacity: 1; }
+  25%, 80% { transform: none; opacity: 1; }
+  100% { transform: translateY(-5px) scale(0.6); opacity: 0; }
+}
+@keyframes digita { 
+  0%, 100% { transform: none; }
+  50% { transform: translateY(-1.5px); }
+}
+@keyframes le { 
+  0%, 100% { transform: translate(-3px, 1.5px); }
+  70% { transform: translate(3px, 1.5px); }
+  85% { transform: translate(3px, 2px); }
+}
+@keyframes tecla { 
+  0%, 60%, 100% { transform: none; opacity: 0.45; }
+  30% { transform: translateY(-2.5px); opacity: 1; }
+}
+@keyframes pulo { 
+  0%, 70%, 100% { transform: none; }
+  15% { transform: scale(1.08, 0.9); }
+  35% { transform: translateY(-12px) scale(0.96, 1.05); }
+  55% { transform: scale(1.06, 0.94); }
+}
+@keyframes sombra-pulo { 
+  0%, 70%, 100% { transform: none; }
+  35% { transform: scaleX(0.7); opacity: 0.15; }
+}
+@keyframes levanta { 
+  0%, 70%, 100% { transform: none; }
+  35% { transform: translateY(-5px) rotate(-8deg); }
+}
+@keyframes chacoalha-broto { 
+  0%, 100% { transform: none; }
+  20% { transform: rotate(-14deg); }
+  40% { transform: rotate(10deg); }
+  60% { transform: rotate(-4deg); }
+  75% { transform: none; }
+}
+@keyframes cintila { 
+  0%, 100% { transform: scale(0) rotate(0deg); opacity: 0; }
+  40% { transform: scale(1) rotate(45deg); opacity: 1; }
+  70% { transform: scale(0.6) rotate(70deg); opacity: 0.6; }
+}
+@keyframes treme { 
+  0%, 40%, 100% { transform: none; }
+  10% { transform: translateX(-1.5px); }
+  20% { transform: translateX(1.5px); }
+  30% { transform: translateX(-1px); }
+}
+@keyframes broto-ereto { 
+  0%, 100% { transform: scaleY(1.06); }
+  8% { transform: scaleY(1.16); }
+  16% { transform: scaleY(1.04); }
+}
+@keyframes exclama { 
+  0% { transform: scale(0); }
+  10% { transform: scale(1.25); }
+  18%, 100% { transform: none; }
+}
+@keyframes chacoalha { 
+  0% { transform: none; }
+  6% { transform: translateX(-5px) rotate(-3deg); }
+  12% { transform: translateX(5px) rotate(3deg); }
+  18% { transform: translateX(-3px); }
+  24% { transform: translateX(2px); }
+  32%, 100% { transform: translateY(2px) scale(1.02, 0.98); }
+}
+@keyframes pisca-triste { 
+  0%, 58%, 74%, 100% { transform: scaleY(0.75); }
+  66% { transform: scaleY(0.12); }
+}
+@keyframes murcha { 
+  0%, 25% { transform: rotate(0deg); }
+  45%, 100% { transform: rotate(30deg); }
+}
+@keyframes escorre { 
+  0%, 25% { transform: none; opacity: 0; }
+  35% { opacity: 1; }
+  85% { transform: translate(-1px, 10px); opacity: 1; }
+  100% { transform: translate(-1px, 13px); opacity: 0; }
+}
+@keyframes ronca { 
+  0%, 100% { transform: none; }
+  50% { transform: translateY(1px) scale(1.035, 0.97); }
+}
+@keyframes zz { 
+  0% { transform: scale(0.6); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translate(6px, -10px) scale(1.1); opacity: 0; }
+}
+@keyframes amassa { 
+  0% { transform: none; }
+  19% { transform: scale(1.12, 0.86); }
+  54% { transform: scale(0.95, 1.05); }
+  100% { transform: none; }
+}
+@keyframes moeda-pula { 
+  0%, 100% { transform: none; }
+  35% { transform: translateY(-7px) rotate(-10deg); }
+  60% { transform: translateY(1px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tino *, .tino { animation: auto ease 0s 1 normal none running none !important; transition: none !important; }
+}
+.tino[data-ausencia=longe]{transform:scale(.74)}.tino[data-ausencia=costas]{transform:scale(.66)}</style><defs><radialGradient id="g16" cx=".38" cy=".3" r=".85"><stop offset="0" stop-color="#A8F0F4"/><stop offset=".55" stop-color="#38B6C4"/><stop offset="1" stop-color="#1F7F8C"/></radialGradient><clipPath id="k16"><path d="M60 31 C85 31 99 50 99 71 C99 93 83 104 60 104 C37 104 21 93 21 71 C21 50 35 31 60 31 Z"/></clipPath></defs><ellipse class="sombra" cx="60" cy="108.5" rx="30" ry="4" fill="#000" opacity=".3"/><g class="corpo"><g class="broto"><g class="crescimento"><g class="haste"><path class="caule" d="M60 33 C60 28 60.4 24 61 20.5" fill="none" stroke="#145E68" stroke-width="2.4" stroke-linecap="round"/><path class="folha fe fe-e" d="M60.3 28 C55 23.5 49.5 24.5 48.5 28 C52 31.5 57 31.5 60.3 28 Z" fill="#7BDB7F" stroke="#145E68" stroke-width="1.8" stroke-linejoin="round"/><path class="folha fe fe-d" d="M60.6 25 C65 19.5 71 19.5 72.5 23 C69 27 64 28 60.6 25 Z" fill="#7BDB7F" stroke="#145E68" stroke-width="1.8" stroke-linejoin="round"/><g class="ponta"><path class="caule" d="M61 20.5 C61.6 17.5 62.2 14.5 63 12" fill="none" stroke="#145E68" stroke-width="2.4" stroke-linecap="round"/><g class="dobra-e"><g class="folha-e"><path class="folha" d="M61.5 21 C53 12 44 13 42 19 C47 26 56 26 61.5 21 Z" fill="#7BDB7F" stroke="#145E68" stroke-width="1.8" stroke-linejoin="round"/><path class="nerv" d="M60 20.5 Q52 17 45 18.5" fill="none" stroke="#4FB85A" stroke-width="1.2" stroke-linecap="round"/></g></g><g class="dobra-d"><g class="folha-d"><path class="folha" d="M63 16 C70 6 80 6 82 12 C76 20 68 21 63 16 Z" fill="#7BDB7F" stroke="#145E68" stroke-width="1.8" stroke-linejoin="round"/><path class="nerv" d="M64.5 15.5 Q72 11 79.5 11.5" fill="none" stroke="#4FB85A" stroke-width="1.2" stroke-linecap="round"/></g></g><path class="folha fe fe-topo" d="M63 12.5 C61.5 6.5 63.5 2 67 0.5 C68.5 4.5 67 9.5 63 12.5 Z" fill="#7BDB7F" stroke="#145E68" stroke-width="1.8" stroke-linejoin="round"/><path class="folha fe-topo2" d="M62.5 12.5 C59 8 55.5 7 53 8.5 C55 12 58.5 13.5 62.5 12.5 Z" fill="#7BDB7F" stroke="#145E68" stroke-width="1.8" stroke-linejoin="round"/></g></g></g></g><g class="moeda-atras"><circle cx="60" cy="92" r="11" fill="#F5C651" stroke="#A8761C" stroke-width="1.8"/><circle cx="60" cy="92" r="6.5" fill="none" stroke="#C9952A" stroke-width="1.4"/></g><path d="M60 31 C85 31 99 50 99 71 C99 93 83 104 60 104 C37 104 21 93 21 71 C21 50 35 31 60 31 Z" fill="#145E68" transform="translate(0 1.8)"/><path d="M60 31 C85 31 99 50 99 71 C99 93 83 104 60 104 C37 104 21 93 21 71 C21 50 35 31 60 31 Z" fill="url(#g16)" stroke="#145E68" stroke-width="1.8" stroke-linejoin="round"/><g clip-path="url(#k16)"><ellipse cx="60" cy="107" rx="42" ry="16" fill="#145E68" opacity=".22"/></g><path d="M93.5 63 C95.5 79 88.5 93.5 74 100" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".28"/><ellipse cx="45" cy="46" rx="10" ry="4.5" fill="#fff" opacity=".5" transform="rotate(-22 45 46)"/><circle cx="55.5" cy="40.5" r="1.7" fill="#fff" opacity=".65"/><g class="rosto"><g class="olhar"><g class="segue"><g class="pisca"><ellipse cx="46" cy="67" rx="4.2" ry="5.8" fill="#1B1A22"/><ellipse cx="47.3" cy="64.8" rx="1.4" ry="2" fill="#fff"/><ellipse cx="74" cy="67" rx="4.2" ry="5.8" fill="#1B1A22"/><ellipse cx="75.3" cy="64.8" rx="1.4" ry="2" fill="#fff"/></g></g></g><path class="boca boca-base" d="M56.5 74 Q60 77 63.5 74" fill="none" stroke="#1B1A22" stroke-width="2.2" stroke-linecap="round"/><g class="olhos-felizes"><path d="M41.5 68 Q46 62.5 50.5 68" fill="none" stroke="#1B1A22" stroke-width="2.6" stroke-linecap="round"/><path d="M69.5 68 Q74 62.5 78.5 68" fill="none" stroke="#1B1A22" stroke-width="2.6" stroke-linecap="round"/></g><g class="olhos-fechados"><path d="M41.5 66 Q46 70.5 50.5 66" fill="none" stroke="#1B1A22" stroke-width="2.6" stroke-linecap="round"/><path d="M69.5 66 Q74 70.5 78.5 66" fill="none" stroke="#1B1A22" stroke-width="2.6" stroke-linecap="round"/></g><path class="boca boca-feliz" d="M55.5 73.5 Q60 80 64.5 73.5 Z" fill="#1B1A22" stroke="#1B1A22" stroke-width="1.4" stroke-linejoin="round"/><ellipse class="boca boca-o" cx="60" cy="76" rx="2.4" ry="3" fill="#1B1A22"/><path class="boca boca-onda" d="M55.5 76 Q57.75 73.5 60 76 T64.5 76" fill="none" stroke="#1B1A22" stroke-width="2.2" stroke-linecap="round"/><path class="boca boca-triste" d="M56.5 77 Q60 73.8 63.5 77" fill="none" stroke="#1B1A22" stroke-width="2.2" stroke-linecap="round"/><path class="boca boca-reta" d="M56.5 75.5 H63.5" fill="none" stroke="#1B1A22" stroke-width="2.2" stroke-linecap="round"/><ellipse class="bochecha" cx="37" cy="75" rx="4.5" ry="2.6" fill="#FF8FA3"/><ellipse class="bochecha" cx="83" cy="75" rx="4.5" ry="2.6" fill="#FF8FA3"/></g><g class="rosto34"><g class="r34-olhos"><path d="M46.5 62.5 Q51 60.6 55.5 62.5 Q56.4 71.5 51 72.4 Q45.6 71.5 46.5 62.5 Z" fill="#1B1A22"/><ellipse cx="48.6" cy="64.4" rx="1.4" ry="1.9" fill="#fff"/><path d="M72.5 62.3 Q75.8 61.1 78.9 62.3 Q79.5 69.8 75.8 70.7 Q72 69.8 72.5 62.3 Z" fill="#1B1A22"/><ellipse cx="74.1" cy="64.1" rx="1" ry="1.45" fill="#fff"/></g><path class="r34-sob" d="M45 56.5 Q50.5 52 56 54.5" fill="none" stroke="#1B1A22" stroke-width="2.2" stroke-linecap="round"/><path d="M72 58 L79 58.9" fill="none" stroke="#1B1A22" stroke-width="2" stroke-linecap="round"/><path class="r34-boca" d="M60 76.5 Q65 78.5 69.5 74.6" fill="none" stroke="#1B1A22" stroke-width="2.2" stroke-linecap="round"/></g><g class="espiada"><ellipse cx="92" cy="64" rx="3.2" ry="4.6" fill="#1B1A22"/><ellipse cx="92.8" cy="62.4" rx="1" ry="1.5" fill="#fff"/></g><g class="segura"><g class="moeda"><ellipse cx="60" cy="101.5" rx="15" ry="3" fill="#145E68" opacity=".28"/><circle cx="60" cy="92" r="11" fill="#F5C651" stroke="#A8761C" stroke-width="1.8"/><circle cx="60" cy="92" r="6.5" fill="none" stroke="#C9952A" stroke-width="1.4"/><path d="M54.5 86.5 Q57.5 84.2 61 84.6" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".7"/></g><g class="maos"><g class="mao-e"><ellipse cx="47" cy="92" rx="7.5" ry="6" fill="url(#g16)" stroke="#145E68" stroke-width="1.8" stroke-linejoin="round"/><ellipse cx="45.5" cy="89.6" rx="2.6" ry="1.3" fill="#fff" opacity=".45"/></g><g class="mao-d"><ellipse cx="73" cy="92" rx="7.5" ry="6" fill="url(#g16)" stroke="#145E68" stroke-width="1.8" stroke-linejoin="round"/><ellipse cx="71.5" cy="89.6" rx="2.6" ry="1.3" fill="#fff" opacity=".45"/></g></g></g></g><g class="fx fx-pensando"><circle class="b0" cx="91" cy="42" r="2.4" fill="#fff"/><circle class="b1" cx="98" cy="33" r="3.6" fill="#fff"/><circle class="b2" cx="107" cy="21" r="5.2" fill="#fff"/></g><g class="fx fx-escrevendo"><rect x="84" y="17" width="30" height="16" rx="8" fill="#fff"/><circle class="p0" cx="92" cy="25" r="2" fill="#7a8494"/><circle class="p1" cx="99" cy="25" r="2" fill="#7a8494"/><circle class="p2" cx="106" cy="25" r="2" fill="#7a8494"/></g><g class="fx fx-sucesso"><path class="s0" d="M30 74 Q30 80 36 80 Q30 80 30 86 Q30 80 24 80 Q30 80 30 74 Z" fill="#FFE08A"/><path class="s1" d="M94 69 Q94 76 101 76 Q94 76 94 83 Q94 76 87 76 Q94 76 94 69 Z" fill="#FFE08A"/><path class="s2" d="M84 35.5 Q84 40 88.5 40 Q84 40 84 44.5 Q84 40 79.5 40 Q84 40 84 35.5 Z" fill="#FFE08A"/></g><g class="fx fx-alerta"><g class="exclama"><rect x="98" y="20" width="5.5" height="15" rx="2.75" fill="#FF6B5A"/><circle cx="100.75" cy="40.5" r="3" fill="#FF6B5A"/></g></g><g class="fx fx-erro"><path class="gota" d="M90 48 Q95 55 90 58.5 Q85 55 90 48 Z" fill="#BDE8FF" stroke="#145E68" stroke-width="1.2"/></g><g class="fx fx-dormindo" font-family="system-ui, sans-serif" font-weight="800" fill="#fff"><text class="z0" x="86" y="42" font-size="9">z</text><text class="z1" x="94" y="32" font-size="11">z</text><text class="z2" x="103" y="20" font-size="13">z</text></g><g class="fx fx-ouvindo" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><path class="onda o0" d="M97 54 Q104 64 97 74"/><path class="onda o1" d="M103 49 Q113 64 103 79"/><path class="onda o2" d="M109 44 Q122 64 109 84"/></g><g class="fx fx-assobio" font-family="system-ui, sans-serif" font-weight="700" fill="#fff"><text class="nota n0" x="75" y="80" font-size="12">♪</text><text class="nota n1" x="79" y="76" font-size="10">♫</text></g><g class="fx-rega"><path class="gota-rega r0" d="M51 -10 Q54.6 -4.5 51 -1 Q47.4 -4.5 51 -10 Z" fill="#8FD8FF" stroke="#145E68" stroke-width="1"/><path class="gota-rega r1" d="M58 -10 Q61.6 -4.5 58 -1 Q54.4 -4.5 58 -10 Z" fill="#8FD8FF" stroke="#145E68" stroke-width="1"/><path class="gota-rega r2" d="M65 -10 Q68.6 -4.5 65 -1 Q61.4 -4.5 65 -10 Z" fill="#8FD8FF" stroke="#145E68" stroke-width="1"/><path class="gota-rega r3" d="M72 -10 Q75.6 -4.5 72 -1 Q68.4 -4.5 72 -10 Z" fill="#8FD8FF" stroke="#145E68" stroke-width="1"/></g></svg>
