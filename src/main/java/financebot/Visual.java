@@ -10,7 +10,7 @@ import net.dv8tion.jda.api.interactions.modals.Modal;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -105,7 +105,24 @@ final class Visual {
         return e.build();
     }
 
-    static MessageEmbed lote(List<String> linhas, long totalGasto, long totalGanho) {
+    static MessageEmbed registro(Tino.Registro r) {
+        return registro(r.centavos(), r.categoria(), r.descricao(), r.data(), r.id(),
+                r.acumulado(), r.tipico(), r.parecida());
+    }
+
+    static MessageEmbed lote(List<Tino.Registro> registros) {
+        List<String> linhas = new ArrayList<>();
+        long totalGasto = 0;
+        long totalGanho = 0;
+        for (Tino.Registro r : registros) {
+            if (r.centavos() > 0) {
+                totalGanho += r.centavos();
+            } else {
+                totalGasto -= r.centavos();
+            }
+            linhas.add("`#%d` %s **%s** · %s".formatted(
+                    r.id(), emoji(r.categoria()), comSinal(r.centavos()), r.categoria()));
+        }
         return new EmbedBuilder()
                 .setColor(totalGasto > totalGanho ? VERMELHO : VERDE)
                 .setAuthor("Anotei %d de uma vez!".formatted(linhas.size()))
@@ -118,7 +135,7 @@ final class Visual {
     // ---------------------------------------------------------------- resumo
 
     static MessageEmbed resumo(Financas.Periodo p, Financas.Resumo atual, Financas.Resumo anterior,
-                               LocalDate hoje) {
+                               Tino.Ritmo ritmo) {
         String titulo = switch (p.unidade()) {
             case DAYS -> "Resumo de hoje";
             case WEEKS -> "Resumo da semana";
@@ -158,29 +175,12 @@ final class Visual {
                         Financas.variacao(atual.despesas(), anterior.despesas()),
                         Financas.variacao(atual.ganhos(), anterior.ganhos())));
 
-        String ritmo = ritmo(p, atual.despesas(), hoje);
         if (ritmo != null) {
-            e.addField("Ritmo", ritmo, false);
+            e.addField("Ritmo", "%s por dia · projeção de **%s** até %s".formatted(
+                    Dinheiro.formatar(ritmo.mediaDiaria()), Dinheiro.formatar(ritmo.projecao()),
+                    p.fim().format(DIA_MES)), false);
         }
         return e.build();
-    }
-
-    /**
-     * Média diária e projeção até o fim do período. Só faz sentido com o período
-     * em andamento — período encerrado já tem o total real, não uma estimativa.
-     */
-    static String ritmo(Financas.Periodo p, long despesas, LocalDate hoje) {
-        if (despesas <= 0 || hoje.isBefore(p.inicio()) || hoje.isAfter(p.fim())) {
-            return null;
-        }
-        long decorridos = ChronoUnit.DAYS.between(p.inicio(), hoje) + 1;
-        long totais = ChronoUnit.DAYS.between(p.inicio(), p.fim()) + 1;
-        if (decorridos >= totais) {
-            return null;   // último dia: a projeção seria o próprio total
-        }
-        long media = despesas / decorridos;
-        return "%s por dia · projeção de **%s** até %s".formatted(
-                Dinheiro.formatar(media), Dinheiro.formatar(media * totais), p.fim().format(DIA_MES));
     }
 
     private static String listaCategorias(List<Financas.Linha> linhas, long total) {
@@ -283,17 +283,16 @@ final class Visual {
 
     // ------------------------------------------------------------ categorias
 
-    static MessageEmbed categorias(List<String> gastos, int raizGasto, List<String> ganhos,
-                                   int raizGanho, int subGasto, int subGanho) {
+    static MessageEmbed categorias(Tino.Categorias c) {
         return new EmbedBuilder()
                 .setColor(AZUL)
                 .setTitle("🗂️ Categorias")
                 .addField("Gastos · %d/%d principais, %d/%d sub".formatted(
-                                raizGasto, Financas.MAX_RAIZ, subGasto, Financas.MAX_SUB),
-                        arvore(gastos), false)
+                                c.raizGasto(), Financas.MAX_RAIZ, c.subGasto(), Financas.MAX_SUB),
+                        arvore(c.gastos()), false)
                 .addField("Ganhos · %d/%d principais, %d/%d sub".formatted(
-                                raizGanho, Financas.MAX_RAIZ, subGanho, Financas.MAX_SUB),
-                        arvore(ganhos), false)
+                                c.raizGanho(), Financas.MAX_RAIZ, c.subGanho(), Financas.MAX_SUB),
+                        arvore(c.ganhos()), false)
                 .setFooter("gerencie com /categoria criar, renomear ou excluir")
                 .build();
     }
@@ -342,26 +341,6 @@ final class Visual {
                 .setDescription(sb.toString())
                 .setFooter("somam %s · lance todos com /fixo lancar".formatted(comSinal(total)))
                 .build();
-    }
-
-    // ------------------------------------------------------------------ CSV
-
-    /** Uma linha por lançamento, com cabeçalho. Ponto decimal para abrir em planilha. */
-    static String csv(List<Financas.Lancamento> lista) {
-        StringBuilder sb = new StringBuilder("id,data,valor,categoria,descricao\n");
-        for (Financas.Lancamento l : lista) {
-            sb.append("%d,%s,%s,%s,%s%n".formatted(
-                    l.id(),
-                    l.data(),
-                    java.math.BigDecimal.valueOf(l.centavos(), 2).toPlainString(),
-                    aspas(l.categoria()),
-                    aspas(l.descricao())));
-        }
-        return sb.toString();
-    }
-
-    private static String aspas(String valor) {
-        return valor == null ? "" : '"' + valor.replace("\"", "\"\"") + '"';
     }
 
     // --------------------------------------------------------- boas-vindas

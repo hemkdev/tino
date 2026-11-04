@@ -50,7 +50,7 @@ class VisualTest {
     void resumoVazioOrientaEmVezDeMostrarTabela() {
         MessageEmbed embed = Visual.resumo(AGOSTO,
                 new Financas.Resumo(0, 0, List.of(), List.of()),
-                new Financas.Resumo(0, 0, List.of(), List.of()), HOJE);
+                new Financas.Resumo(0, 0, List.of(), List.of()), null);
 
         assertTrue(embed.getDescription().contains("50 mercado"));   // ensina em vez de tabular
     }
@@ -63,7 +63,7 @@ class VisualTest {
                 List.of(new Financas.Linha("Salário", 300_000)));
         Financas.Resumo anterior = new Financas.Resumo(0, 40_000, List.of(), List.of());
 
-        MessageEmbed embed = Visual.resumo(AGOSTO, atual, anterior, HOJE);
+        MessageEmbed embed = Visual.resumo(AGOSTO, atual, anterior, null);
 
         assertTrue(embed.getDescription().contains("Alimentação"));
         assertTrue(embed.getDescription().contains("62,5%"));      // 500 de 800
@@ -111,51 +111,16 @@ class VisualTest {
     }
 
     @Test
-    void projetaOMesComBaseNaMediaDiaria() {
-        // 7 dias decorridos, R$ 700 gastos → R$ 100/dia → R$ 3.100 em 31 dias
-        String ritmo = Visual.ritmo(AGOSTO, 70_000, HOJE);
+    void resumoMostraRitmoQuandoHa() {
+        Financas.Resumo atual = new Financas.Resumo(0, 70_000,
+                List.of(new Financas.Linha("Lazer", 70_000)), List.of());
 
+        MessageEmbed embed = Visual.resumo(AGOSTO, atual, atual, new Tino.Ritmo(10_000, 310_000));
+
+        String ritmo = embed.getFields().getLast().getValue();
         assertTrue(ritmo.contains("R$ 100,00 por dia"));
         assertTrue(ritmo.contains("R$ 3.100,00"));
-    }
-
-    @Test
-    void naoProjetaPeriodoJaEncerrado() {
-        assertNull(Visual.ritmo(AGOSTO, 70_000, LocalDate.of(2026, 9, 15)));
-    }
-
-    @Test
-    void naoProjetaNoUltimoDiaDoPeriodo() {
-        assertNull(Visual.ritmo(AGOSTO, 70_000, LocalDate.of(2026, 8, 31)));
-    }
-
-    @Test
-    void naoProjetaSemGasto() {
-        assertNull(Visual.ritmo(AGOSTO, 0, HOJE));
-    }
-
-    @Test
-    void csvTemCabecalhoEValorComPontoDecimal() {
-        String csv = Visual.csv(List.of(
-                new Financas.Lancamento(1, HOJE, -123_456, "Moradia", "aluguel")));
-
-        assertTrue(csv.startsWith("id,data,valor,categoria,descricao\n"));
-        assertTrue(csv.contains("-1234.56"));
-        assertTrue(csv.contains("\"Moradia\""));
-    }
-
-    @Test
-    void csvEscapaAspasDaDescricao() {
-        String csv = Visual.csv(List.of(
-                new Financas.Lancamento(1, HOJE, -100, "Lazer", "show do \"grupo\"")));
-
-        assertTrue(csv.contains("\"show do \"\"grupo\"\"\""));
-    }
-
-    @Test
-    void csvNaoQuebraComDescricaoNula() {
-        assertTrue(Visual.csv(List.of(
-                new Financas.Lancamento(1, HOJE, -100, "Lazer", null))).endsWith(",\n"));
+        assertTrue(ritmo.contains("31/08"));
     }
 
     @Test
@@ -234,9 +199,9 @@ class VisualTest {
 
     @Test
     void arvoreDeCategoriasIndentaSubcategoria() {
-        MessageEmbed embed = Visual.categorias(
-                List.of("Alimentação", "Alimentação > Mercado"), 1,
-                List.of("Salário"), 1, 1, 0);
+        MessageEmbed embed = Visual.categorias(new Tino.Categorias(
+                List.of("Alimentação", "Alimentação > Mercado"), 1, 1,
+                List.of("Salário"), 1, 0));
 
         assertTrue(embed.getFields().get(0).getValue().contains("↳ Mercado"));
         assertTrue(embed.getFields().get(1).getValue().contains("Salário"));

@@ -1,6 +1,9 @@
 package financebot;
 
 import java.text.Normalizer;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -262,5 +265,36 @@ final class Entrada {
     private static String semAcento(String texto) {
         return Normalizer.normalize(texto, Normalizer.Form.NFD)
                 .replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
+    }
+
+    // ----------------------------------------------------------------- datas
+
+    private static final DateTimeFormatter DIA_MES = DateTimeFormatter.ofPattern("d/M/yyyy");
+
+    /** Aceita "DD/MM", "AAAA-MM-DD" ou vazio (hoje). Rejeita data futura. */
+    static LocalDate data(String texto, LocalDate hoje) {
+        if (texto == null || texto.isBlank()) {
+            return hoje;
+        }
+        String limpo = texto.trim();
+        if (limpo.matches("\\d{1,2}")) {
+            limpo = limpo + "/" + hoje.getMonthValue();   // só o dia: mês corrente
+        }
+        LocalDate data;
+        try {
+            data = limpo.contains("/")
+                    ? LocalDate.parse(limpo + "/" + hoje.getYear(), DIA_MES)
+                    : LocalDate.parse(limpo);
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("data inválida: use DD/MM ou AAAA-MM-DD");
+        }
+        // "25/12" digitado em janeiro é dezembro do ano passado, não do que vem.
+        if (data.isAfter(hoje) && limpo.contains("/")) {
+            data = data.minusYears(1);
+        }
+        if (data.isAfter(hoje)) {
+            throw new IllegalArgumentException("a data não pode ser futura");
+        }
+        return data;
     }
 }

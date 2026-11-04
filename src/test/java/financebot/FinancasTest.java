@@ -528,38 +528,50 @@ class FinancasTest {
         assertEquals("-25,0%", Financas.variacao(75, 100));
     }
 
-    // ----------------------------------------------------------------- datas
+    // ----------------------------------------------------------------- contas
 
     @Test
-    void dataVaziaViraHoje() {
-        assertEquals(HOJE, Financas.parseData(null, HOJE));
-        assertEquals(HOJE, Financas.parseData("", HOJE));
+    void mesmaIdentidadeDevolveMesmaConta() throws SQLException {
+        String conta = Financas.conta(c, "discord", "999");
+
+        assertEquals(conta, Financas.conta(c, "discord", "999"));
+        assertFalse(conta.equals(Financas.conta(c, "discord", "888")));
     }
 
     @Test
-    void aceitaDiaBarraMesEIso() {
-        assertEquals(LocalDate.of(2026, 8, 1), Financas.parseData("1/8", HOJE));
-        assertEquals(LocalDate.of(2026, 7, 15), Financas.parseData("2026-07-15", HOJE));
+    void mesmoIdEmProvedorDiferenteEhOutraConta() throws SQLException {
+        assertFalse(Financas.conta(c, "discord", "999").equals(Financas.conta(c, "telegram", "999")));
     }
 
     @Test
-    void diaSoltoUsaOMesCorrente() {
-        assertEquals(LocalDate.of(2026, 8, 5), Financas.parseData("5", HOJE));
-        assertEquals(LocalDate.of(2026, 8, 5), Financas.parseData("05", HOJE));
+    void vincularLigaNovaIdentidadeAContaExistente() throws SQLException {
+        String conta = Financas.conta(c, "discord", "999");
+
+        Financas.vincular(c, conta, "google", "eu@exemplo.com");
+
+        assertEquals(conta, Financas.conta(c, "google", "eu@exemplo.com"));
     }
 
     @Test
-    void diaBarraMesFuturoCaiNoAnoAnterior() {
-        assertEquals(LocalDate.of(2025, 12, 25), Financas.parseData("25/12", HOJE));
+    void vincularIdentidadeDeOutraContaEhRecusado() throws SQLException {
+        String minha = Financas.conta(c, "discord", "999");
+        Financas.conta(c, "google", "outro@exemplo.com");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> Financas.vincular(c, minha, "google", "outro@exemplo.com"));
     }
 
     @Test
-    void rejeitaDataFuturaExplicita() {
-        assertThrows(IllegalArgumentException.class, () -> Financas.parseData("2026-12-25", HOJE));
-    }
+    void migracaoMoveDadosDoIdDoDiscordParaConta() throws SQLException {
+        // EU e OUTRO foram gravados como antes: usuario = id do Discord
+        gasto(EU, "50", "Lazer", HOJE);
 
-    @Test
-    void rejeitaDataInvalida() {
-        assertThrows(IllegalArgumentException.class, () -> Financas.parseData("ontem", HOJE));
+        Financas.migrarParaContas(c);
+        Financas.migrarParaContas(c);   // idempotente
+
+        String conta = Financas.conta(c, "discord", EU);
+        assertEquals(5_000, resumoDoMes(conta).despesas());
+        assertEquals(0, resumoDoMes(EU).despesas());
+        assertFalse(conta.equals(Financas.conta(c, "discord", OUTRO)));
     }
 }

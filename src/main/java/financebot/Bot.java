@@ -24,28 +24,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
+/** Canal Discord: traduz eventos do JDA em chamadas ao {@link Tino} e respostas em embed. */
 public class Bot extends ListenerAdapter {
 
     private static final Logger LOG = LoggerFactory.getLogger(Bot.class);
-    private static final int LIMITE_LISTA = 20;
-    private static final String PADRAO = "Outros";
 
-    // ponytail: uma conexão só, serializada por lock. Um bot pessoal não tem
-    // concorrência que justifique pool; se tiver, trocar por HikariCP.
-    private final Connection conexao;
+    private final Tino tino;
 
-    private Bot(Connection conexao) {
-        this.conexao = conexao;
+    private Bot(Tino tino) {
+        this.tino = tino;
     }
 
     public static void main(String[] args) throws Exception {
@@ -55,19 +47,12 @@ public class Bot extends ListenerAdapter {
             System.exit(1);
         }
 
-        String caminho = System.getenv().getOrDefault("BANCO_CAMINHO", "financebot.db");
-        Connection conexao = DriverManager.getConnection("jdbc:sqlite:" + caminho);
-        try (Statement s = conexao.createStatement()) {
-            s.execute("PRAGMA journal_mode=WAL");
-            s.execute("PRAGMA busy_timeout=5000");
-        }
-        Financas.criarTabelas(conexao);
-        Financas.normalizarCategorias(conexao);
+        Tino tino = Tino.abrir(System.getenv().getOrDefault("BANCO_CAMINHO", "financebot.db"));
 
         // DIRECT_MESSAGES não é privilegiada, e em DM o conteúdo da mensagem vem
         // preenchido sem precisar da intent de conteúdo.
         JDA jda = JDABuilder.createLight(token, GatewayIntent.DIRECT_MESSAGES)
-                .addEventListeners(new Bot(conexao))
+                .addEventListeners(new Bot(tino))
                 .build()
                 .awaitReady();
         registrarComandos(jda);
@@ -166,30 +151,26 @@ public class Bot extends ListenerAdapter {
         // ephemeral evita expor gasto para o canal inteiro.
         evento.deferReply(evento.isFromGuild()).queue();
         try {
-            String usuario = evento.getUser().getId();
+            String usuario = tino.conta("discord", evento.getUser().getId());
 
             if (evento.getName().equals("exportar")) {
                 exportar(evento, usuario);
                 return;
             }
 
-            Resposta resposta;
-            synchronized (conexao) {
-                Financas.prepararUsuario(conexao, usuario);
-                resposta = switch (evento.getName()) {
-                    case "gasto" -> registrar(evento, usuario, false);
-                    case "ganho" -> registrar(evento, usuario, true);
-                    case "lancar" -> lote(usuario,
-                            evento.getOption("texto").getAsString(), LocalDate.now());
-                    case "resumo" -> Resposta.de(resumo(usuario, periodo(evento)));
-                    case "lancamentos" -> pagina(usuario, periodo(evento), 0);
-                    case "remover" -> Resposta.de(remover(evento, usuario));
-                    case "categoria" -> Resposta.de(categoria(evento, usuario));
-                    case "fixo" -> Resposta.de(fixo(evento, usuario));
-                    case "ajuda" -> Resposta.de(Visual.ajuda());
-                    default -> Resposta.de(Visual.erro("comando desconhecido"));
-                };
-            }
+            tino.preparar(usuario);
+            Resposta resposta = switch (evento.getName()) {
+                case "gasto" -> registrar(evento, usuario, false);
+                case "ganho" -> registrar(evento, usuario, true);
+                case "lancar" -> lote(usuario, evento.getOption("texto").getAsString());
+                case "resumo" -> Resposta.de(resumo(usuario, periodo(evento)));
+                case "lancamentos" -> pagina(usuario, periodo(evento), 0);
+                case "remover" -> Resposta.de(remover(evento, usuario));
+                case "categoria" -> Resposta.de(categoria(evento, usuario));
+                case "fixo" -> Resposta.de(fixo(evento, usuario));
+                case "ajuda" -> Resposta.de(Visual.ajuda());
+                default -> Resposta.de(Visual.erro("comando desconhecido"));
+            };
             responder(evento, resposta);
         } catch (IllegalArgumentException e) {
             evento.getHook().sendMessageEmbeds(Visual.aviso(e.getMessage())).queue();
@@ -220,15 +201,11 @@ public class Bot extends ListenerAdapter {
             return;   // conversa solta não vira nada
         }
         try {
-            String usuario = evento.getAuthor().getId();
-            Resposta resposta;
-            boolean primeiraVez;
-            synchronized (conexao) {
-                primeiraVez = Financas.prepararUsuario(conexao, usuario);
-                resposta = lancamento
-                        ? lote(usuario, texto, LocalDate.now())
-                        : responderConsulta(usuario, consulta);
-            }
+            String usuario = tino.conta("discord", evento.getAuthor().getId());
+            boolean primeiraVez = tino.preparar(usuario);
+            Resposta resposta = lancamento
+                    ? lote(usuario, texto)
+                    : responderConsulta(usuario, consulta);
             if (primeiraVez) {
                 evento.getMessage().replyEmbeds(Visual.boasVindas()).queue();
             }
@@ -250,14 +227,8 @@ public class Bot extends ListenerAdapter {
             throws SQLException {
         return switch (consulta.tipo()) {
             case "lancamentos" -> pagina(usuario, consulta.periodo(), 0);
-            case "categorias" -> Resposta.de(Visual.categorias(
-                    Financas.caminhos(conexao, usuario, Financas.GASTO, "", 200),
-                    Financas.contar(conexao, usuario, Financas.GASTO, true),
-                    Financas.caminhos(conexao, usuario, Financas.GANHO, "", 200),
-                    Financas.contar(conexao, usuario, Financas.GANHO, true),
-                    Financas.contar(conexao, usuario, Financas.GASTO, false),
-                    Financas.contar(conexao, usuario, Financas.GANHO, false)));
-            case "fixos" -> Resposta.de(Visual.recorrentes(Financas.recorrentes(conexao, usuario)));
+            case "categorias" -> Resposta.de(Visual.categorias(tino.categorias(usuario)));
+            case "fixos" -> Resposta.de(Visual.recorrentes(tino.fixos(usuario)));
             case "ajuda" -> Resposta.de(Visual.ajuda());
             default -> Resposta.de(resumo(usuario, consulta.periodo()));
         };
@@ -266,17 +237,15 @@ public class Bot extends ListenerAdapter {
     @Override
     public void onButtonInteraction(ButtonInteractionEvent evento) {
         String[] partes = evento.getComponentId().split(":");
-        if (partes.length < 3 || !partes[1].equals(evento.getUser().getId())) {
-            evento.reply("Esse botão não é seu.").setEphemeral(true).queue();
-            return;
-        }
         try {
+            // O botão carrega a conta do dono; quem clica precisa resolver para a mesma.
+            if (partes.length < 3 || !partes[1].equals(tino.conta("discord", evento.getUser().getId()))) {
+                evento.reply("Esse botão não é seu.").setEphemeral(true).queue();
+                return;
+            }
             switch (partes[0]) {
                 case "desfazer" -> {
-                    boolean removido;
-                    synchronized (conexao) {
-                        removido = Financas.remover(conexao, partes[1], Long.parseLong(partes[2]));
-                    }
+                    boolean removido = tino.remover(partes[1], Long.parseLong(partes[2]));
                     evento.editMessageEmbeds(removido
                                     ? Visual.ok("Lançamento `#%s` desfeito.".formatted(partes[2]))
                                     : Visual.aviso("Esse lançamento já não existe."))
@@ -284,10 +253,7 @@ public class Bot extends ListenerAdapter {
                             .queue();
                 }
                 case "editar" -> {
-                    Optional<Financas.Lancamento> alvo;
-                    synchronized (conexao) {
-                        alvo = Financas.buscar(conexao, partes[1], Long.parseLong(partes[2]));
-                    }
+                    Optional<Financas.Lancamento> alvo = tino.buscar(partes[1], Long.parseLong(partes[2]));
                     if (alvo.isEmpty()) {
                         evento.reply("Esse lançamento já não existe.").setEphemeral(true).queue();
                         return;
@@ -295,10 +261,7 @@ public class Bot extends ListenerAdapter {
                     evento.replyModal(Visual.edicao(partes[1], alvo.get())).queue();
                 }
                 case "pag" -> {
-                    Resposta r;
-                    synchronized (conexao) {
-                        r = pagina(partes[1], partes[2], Integer.parseInt(partes[3]));
-                    }
+                    Resposta r = pagina(partes[1], partes[2], Integer.parseInt(partes[3]));
                     evento.editMessageEmbeds(r.embed()).setComponents(r.botoes()).queue();
                 }
                 default -> evento.deferEdit().queue();
@@ -312,34 +275,21 @@ public class Bot extends ListenerAdapter {
     @Override
     public void onModalInteraction(ModalInteractionEvent evento) {
         String[] partes = evento.getModalId().split(":");
-        if (partes.length < 3 || !partes[1].equals(evento.getUser().getId())) {
-            return;
-        }
         evento.deferEdit().queue();
         try {
+            if (partes.length < 3 || !partes[1].equals(tino.conta("discord", evento.getUser().getId()))) {
+                return;
+            }
             long id = Long.parseLong(partes[2]);
             String usuario = partes[1];
 
             long centavos = Dinheiro.paraCentavos(campo(evento, "valor"));
             String caminho = campo(evento, "categoria");
             String novaDescricao = campo(evento, "descricao");
-            LocalDate novaData = Financas.parseData(campo(evento, "data"), LocalDate.now());
+            LocalDate novaData = Entrada.data(campo(evento, "data"), LocalDate.now());
 
-            MessageEmbed embed;
-            synchronized (conexao) {
-                Financas.Lancamento antes = Financas.buscar(conexao, usuario, id).orElseThrow(
-                        () -> new IllegalArgumentException("esse lançamento já não existe"));
-                boolean ganho = antes.centavos() > 0;
-
-                long categoriaId = Financas.categoriaId(conexao, usuario, caminho,
-                        ganho ? Financas.GANHO : Financas.GASTO);
-                Financas.atualizar(conexao, usuario, id, ganho ? centavos : -centavos,
-                        categoriaId, novaDescricao, novaData);
-
-                embed = Visual.registro(ganho ? centavos : -centavos, caminho, novaDescricao,
-                        novaData, id, 0, 0, null);
-            }
-            evento.getHook().editOriginalEmbeds(embed).queue();
+            Tino.Registro r = tino.editar(usuario, id, centavos, caminho, novaDescricao, novaData);
+            evento.getHook().editOriginalEmbeds(Visual.registro(r)).queue();
         } catch (IllegalArgumentException e) {
             evento.getHook().sendMessageEmbeds(Visual.aviso(e.getMessage())).setEphemeral(true).queue();
         } catch (Exception e) {
@@ -354,12 +304,10 @@ public class Bot extends ListenerAdapter {
             return;
         }
         try {
-            List<String> nomes;
-            synchronized (conexao) {
-                Financas.prepararUsuario(conexao, evento.getUser().getId());
-                nomes = Financas.caminhos(conexao, evento.getUser().getId(),
-                        tipoDoContexto(evento), evento.getFocusedOption().getValue(), 25);
-            }
+            String usuario = tino.conta("discord", evento.getUser().getId());
+            tino.preparar(usuario);
+            List<String> nomes = tino.caminhos(usuario,
+                    tipoDoContexto(evento), evento.getFocusedOption().getValue(), 25);
             evento.replyChoiceStrings(nomes).queue();
         } catch (SQLException e) {
             evento.replyChoiceStrings().queue();
@@ -383,124 +331,58 @@ public class Bot extends ListenerAdapter {
 
     private Resposta registrar(SlashCommandInteractionEvent evento, String usuario, boolean ganho)
             throws SQLException {
-        String categoria = textoOu(evento, "categoria", PADRAO);
-        String descricao = texto(evento, "descricao");
         long valor = Dinheiro.paraCentavos(evento.getOption("valor").getAsString());
-        LocalDate data = Financas.parseData(texto(evento, "data"), LocalDate.now());
-
-        return gravar(usuario, ganho ? valor : -valor, categoria, descricao, data);
+        LocalDate data = Entrada.data(texto(evento, "data"), LocalDate.now());
+        return registro(usuario, tino.registrar(usuario, ganho ? valor : -valor,
+                texto(evento, "categoria"), texto(evento, "descricao"), data));
     }
 
-    /** Grava um lançamento e monta o embed com acumulado, alerta e aviso de categoria nova. */
-    private Resposta gravar(String usuario, long centavos, String categoria,
-                            String descricao, LocalDate data) throws SQLException {
-        boolean ganho = centavos > 0;
-        String tipo = ganho ? Financas.GANHO : Financas.GASTO;
-
-        // Antes de criar: se não existe mas há uma parecida, vale avisar do provável engano.
-        String parecida = Financas.caminhos(conexao, usuario, tipo, categoria, 1).isEmpty()
-                ? Financas.parecida(conexao, usuario, categoria, tipo).orElse(null)
-                : null;
-
-        long categoriaId = Financas.categoriaId(conexao, usuario, categoria, tipo);
-        long tipico = Financas.valorTipico(conexao, usuario, categoriaId, data);
-        long id = Financas.registrar(conexao, usuario, centavos, categoriaId, descricao, data);
-
-        long acumulado = Financas.totalDaCategoria(conexao, usuario, categoriaId,
-                Financas.Periodo.de("mes", data), ganho);
-
-        return new Resposta(
-                Visual.registro(centavos, categoria, descricao, data, id, acumulado, tipico, parecida),
-                Visual.acoesDoRegistro(usuario, id));
+    private static Resposta registro(String usuario, Tino.Registro r) {
+        return new Resposta(Visual.registro(r), Visual.acoesDoRegistro(usuario, r.id()));
     }
 
     /** Vários lançamentos numa tacada, tanto por /lancar quanto por texto solto na DM. */
-    private Resposta lote(String usuario, String texto, LocalDate hoje) throws SQLException {
-        // As categorias existentes permitem reconhecer nomes com espaço sem exigir aspas.
-        List<Entrada.Item> itens = Entrada.lista(texto,
-                Set.copyOf(Financas.caminhos(conexao, usuario, null, "", 200)));
-
-        if (itens.size() == 1) {
-            Entrada.Item item = itens.get(0);
-            return gravar(usuario, item.ganho() ? item.centavos() : -item.centavos(),
-                    item.categoria() == null ? PADRAO : item.categoria(), item.descricao(),
-                    Financas.parseData(item.data(), hoje));
-        }
-
-        List<String> linhas = new ArrayList<>();
-        long totalGasto = 0;
-        long totalGanho = 0;
-        for (Entrada.Item item : itens) {
-            String categoria = item.categoria() == null ? PADRAO : item.categoria();
-            long centavos = item.ganho() ? item.centavos() : -item.centavos();
-            long categoriaId = Financas.categoriaId(conexao, usuario, categoria,
-                    item.ganho() ? Financas.GANHO : Financas.GASTO);
-            long id = Financas.registrar(conexao, usuario, centavos, categoriaId,
-                    item.descricao(), Financas.parseData(item.data(), hoje));
-
-            if (item.ganho()) {
-                totalGanho += item.centavos();
-            } else {
-                totalGasto += item.centavos();
-            }
-            linhas.add("`#%d` %s **%s%s** · %s".formatted(id, Visual.emoji(categoria),
-                    item.ganho() ? "+" : "-", Dinheiro.formatar(item.centavos()), categoria));
-        }
-        return Resposta.de(Visual.lote(linhas, totalGasto, totalGanho));
+    private Resposta lote(String usuario, String texto) throws SQLException {
+        List<Tino.Registro> registros = tino.lancar(usuario, texto, LocalDate.now());
+        return registros.size() == 1
+                ? registro(usuario, registros.get(0))
+                : Resposta.de(Visual.lote(registros));
     }
 
     private MessageEmbed resumo(String usuario, String tipoPeriodo) throws SQLException {
         LocalDate hoje = LocalDate.now();
-        Financas.Periodo periodo = Financas.Periodo.de(tipoPeriodo, hoje);
-        return Visual.resumo(periodo,
-                Financas.resumo(conexao, usuario, periodo),
-                Financas.resumo(conexao, usuario, periodo.anterior()),
-                hoje);
+        Tino.Comparativo c = tino.resumo(usuario, tipoPeriodo, hoje);
+        return Visual.resumo(c.periodo(), c.atual(), c.anterior(), c.ritmo());
     }
 
     /** Uma página de lançamentos com os botões de navegação, quando fazem sentido. */
     private Resposta pagina(String usuario, String tipoPeriodo, int offset) throws SQLException {
-        Financas.Periodo periodo = Financas.Periodo.de(tipoPeriodo, LocalDate.now());
-        // Busca um a mais do que cabe: se vier, existe página seguinte.
-        List<Financas.Lancamento> lista =
-                Financas.lancamentos(conexao, usuario, periodo, LIMITE_LISTA + 1, offset);
-
-        boolean temProxima = lista.size() > LIMITE_LISTA;
-        if (temProxima) {
-            lista = lista.subList(0, LIMITE_LISTA);
-        }
-
-        MessageEmbed embed = Visual.lancamentos(periodo, lista, offset, temProxima);
-        return offset == 0 && !temProxima
+        Tino.Pagina p = tino.pagina(usuario, tipoPeriodo, offset, LocalDate.now());
+        MessageEmbed embed = Visual.lancamentos(p.periodo(), p.itens(), offset, p.temProxima());
+        return offset == 0 && !p.temProxima()
                 ? Resposta.de(embed)
-                : new Resposta(embed,
-                        Visual.paginacao(usuario, tipoPeriodo, offset, temProxima, LIMITE_LISTA));
+                : new Resposta(embed, Visual.paginacao(usuario, tipoPeriodo, offset,
+                        p.temProxima(), Tino.LIMITE_PAGINA));
     }
 
     private void exportar(SlashCommandInteractionEvent evento, String usuario) throws SQLException {
-        Financas.Periodo periodo = Financas.Periodo.de(periodo(evento), LocalDate.now());
-        List<Financas.Lancamento> lista;
-        synchronized (conexao) {
-            Financas.prepararUsuario(conexao, usuario);
-            lista = Financas.lancamentos(conexao, usuario, periodo, Integer.MAX_VALUE, 0);
-        }
-        if (lista.isEmpty()) {
+        Tino.Exportacao x = tino.exportar(usuario, periodo(evento), LocalDate.now());
+        if (x.quantidade() == 0) {
             evento.getHook().sendMessageEmbeds(Visual.aviso("Nada para exportar neste período.")).queue();
             return;
         }
-        byte[] csv = Visual.csv(lista).getBytes(StandardCharsets.UTF_8);
         evento.getHook()
                 .sendMessageEmbeds(Visual.ok("%d lançamentos de %s a %s.".formatted(
-                        lista.size(), periodo.inicio(), periodo.fim())))
-                .addFiles(FileUpload.fromData(csv,
-                        "lancamentos-%s.csv".formatted(periodo.inicio())))
+                        x.quantidade(), x.periodo().inicio(), x.periodo().fim())))
+                .addFiles(FileUpload.fromData(x.csv().getBytes(StandardCharsets.UTF_8),
+                        "lancamentos-%s.csv".formatted(x.periodo().inicio())))
                 .queue();
     }
 
     private MessageEmbed remover(SlashCommandInteractionEvent evento, String usuario)
             throws SQLException {
         long id = evento.getOption("id").getAsLong();
-        return Financas.remover(conexao, usuario, id)
+        return tino.remover(usuario, id)
                 ? Visual.ok("Lançamento `#%d` removido.".formatted(id))
                 : Visual.aviso("Não achei o lançamento `#%d`.".formatted(id));
     }
@@ -511,27 +393,21 @@ public class Bot extends ListenerAdapter {
         return switch (evento.getSubcommandName()) {
             case "criar" -> {
                 String nome = evento.getOption("nome").getAsString();
-                Financas.categoriaId(conexao, usuario, nome, tipo);
+                tino.criarCategoria(usuario, nome, tipo);
                 yield Visual.ok("Categoria de %s criada: **%s**".formatted(tipo, nome));
             }
             case "renomear" -> {
                 String antes = evento.getOption("categoria").getAsString();
                 String depois = evento.getOption("nome").getAsString();
-                Financas.renomear(conexao, usuario, antes, depois, tipo);
+                tino.renomearCategoria(usuario, antes, depois, tipo);
                 yield Visual.ok("**%s** agora é **%s**.".formatted(antes, depois));
             }
             case "excluir" -> {
                 String alvo = evento.getOption("categoria").getAsString();
-                Financas.excluir(conexao, usuario, alvo, tipo);
+                tino.excluirCategoria(usuario, alvo, tipo);
                 yield Visual.ok("**%s** excluída.".formatted(alvo));
             }
-            default -> Visual.categorias(
-                    Financas.caminhos(conexao, usuario, Financas.GASTO, "", 200),
-                    Financas.contar(conexao, usuario, Financas.GASTO, true),
-                    Financas.caminhos(conexao, usuario, Financas.GANHO, "", 200),
-                    Financas.contar(conexao, usuario, Financas.GANHO, true),
-                    Financas.contar(conexao, usuario, Financas.GASTO, false),
-                    Financas.contar(conexao, usuario, Financas.GANHO, false));
+            default -> Visual.categorias(tino.categorias(usuario));
         };
     }
 
@@ -541,28 +417,25 @@ public class Bot extends ListenerAdapter {
             case "adicionar" -> {
                 Entrada.Item item = Entrada.item(evento.getOption("valor").getAsString());
                 String categoria = evento.getOption("categoria").getAsString();
-                long categoriaId = Financas.categoriaId(conexao, usuario, categoria,
-                        item.ganho() ? Financas.GANHO : Financas.GASTO);
-                Financas.adicionarRecorrente(conexao, usuario,
-                        item.ganho() ? item.centavos() : -item.centavos(),
-                        categoriaId, texto(evento, "descricao"));
+                tino.adicionarFixo(usuario, item.ganho() ? item.centavos() : -item.centavos(),
+                        categoria, texto(evento, "descricao"));
                 yield Visual.ok("Fixo cadastrado: **%s** em %s".formatted(
                         Dinheiro.formatar(item.centavos()), categoria));
             }
             case "remover" -> {
                 long id = evento.getOption("id").getAsLong();
-                yield Financas.removerRecorrente(conexao, usuario, id)
+                yield tino.removerFixo(usuario, id)
                         ? Visual.ok("Fixo `#%d` removido.".formatted(id))
                         : Visual.aviso("Não achei o fixo `#%d`.".formatted(id));
             }
             case "lancar" -> {
-                int quantos = Financas.lancarRecorrentes(conexao, usuario, LocalDate.now());
+                int quantos = tino.lancarFixos(usuario, LocalDate.now());
                 yield quantos == 0
                         ? Visual.aviso("Nenhum fixo cadastrado. Use `/fixo adicionar`.")
                         : Visual.ok("%d fixo(s) lançados hoje. Confira em `/lancamentos`."
                                 .formatted(quantos));
             }
-            default -> Visual.recorrentes(Financas.recorrentes(conexao, usuario));
+            default -> Visual.recorrentes(tino.fixos(usuario));
         };
     }
 
@@ -583,11 +456,6 @@ public class Bot extends ListenerAdapter {
     private static String texto(SlashCommandInteractionEvent evento, String nome) {
         OptionMapping opcao = evento.getOption(nome);
         return opcao == null ? null : opcao.getAsString();
-    }
-
-    private static String textoOu(SlashCommandInteractionEvent evento, String nome, String padrao) {
-        String valor = texto(evento, nome);
-        return valor == null || valor.isBlank() ? padrao : valor;
     }
 
     private static String campo(ModalInteractionEvent evento, String nome) {
