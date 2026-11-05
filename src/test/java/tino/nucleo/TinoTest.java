@@ -3,15 +3,26 @@ package tino.nucleo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Path;
+import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -21,17 +32,24 @@ class TinoTest {
 
     private static final String EU = "111";
     private static final String OUTRO = "222";
+    private static final ZoneId SP = ZoneId.of("America/Sao_Paulo");
     private static final LocalDate HOJE = LocalDate.of(2026, 8, 7);
+    private static final Clock MEIO_DIA = relogio("2026-08-07T12:00");
     private static final Periodo AGOSTO = new Periodo(
             LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31), ChronoUnit.MONTHS);
 
+    private Connection conexao;
     private Tino tino;
+
+    private static Clock relogio(String horaLocal) {
+        return Clock.fixed(LocalDateTime.parse(horaLocal).atZone(SP).toInstant(), SP);
+    }
 
     @BeforeEach
     void abrir() throws SQLException {
-        var c = DriverManager.getConnection("jdbc:sqlite::memory:");
-        Financas.criarTabelas(c);
-        tino = new Tino(c);
+        conexao = DriverManager.getConnection("jdbc:sqlite::memory:");
+        Financas.criarTabelas(conexao);
+        tino = new Tino(conexao, MEIO_DIA);
         tino.preparar(EU);
         tino.preparar(OUTRO);
     }
@@ -66,19 +84,19 @@ class TinoTest {
 
     @Test
     void lancarGravaCadaItemComSeuSinal() throws SQLException {
-        List<Evento> eventos = tino.lancar(EU, "50 mercado, +3000 salário", HOJE);
+        List<Evento> eventos = tino.lancar(EU, "50 mercado, +3000 salário");
 
         assertEquals(2, eventos.size());
         assertEquals(-5_000, registrado(eventos.get(0)).centavos());
         assertEquals(300_000, registrado(eventos.get(1)).centavos());
-        assertEquals(2, tino.pagina(EU, "mes", 0, HOJE).itens().size());
+        assertEquals(2, tino.pagina(EU, Escala.MES, 0).itens().size());
     }
 
     @Test
     void editarMantemOSinalOriginal() throws SQLException {
         long id = tino.registrar(EU, -5_000, "Lazer", null, HOJE).id();
 
-        Tino.Registro r = tino.editar(EU, id, 7_000, "Lazer", "cinema", HOJE);
+        Tino.Registro r = tino.editar(EU, id, new Pedido(-7_000, "Lazer", "cinema", HOJE));
 
         assertEquals(-7_000, r.centavos());
         assertEquals(-7_000, tino.buscar(EU, id).orElseThrow().centavos());
@@ -89,7 +107,7 @@ class TinoTest {
         long id = tino.registrar(EU, -5_000, "Lazer", null, HOJE).id();
 
         assertThrows(IllegalArgumentException.class,
-                () -> tino.editar(OUTRO, id, 1_000, "Lazer", null, HOJE));
+                () -> tino.editar(OUTRO, id, new Pedido(-1_000, "Lazer", null, HOJE)));
     }
 
     @Test
@@ -98,8 +116,8 @@ class TinoTest {
             tino.registrar(EU, -100, "Lazer", null, HOJE);
         }
 
-        Tino.Pagina primeira = tino.pagina(EU, "mes", 0, HOJE);
-        Tino.Pagina segunda = tino.pagina(EU, "mes", Tino.LIMITE_PAGINA, HOJE);
+        Tino.Pagina primeira = tino.pagina(EU, Escala.MES, 0);
+        Tino.Pagina segunda = tino.pagina(EU, Escala.MES, Tino.LIMITE_PAGINA);
 
         assertEquals(Tino.LIMITE_PAGINA, primeira.itens().size());
         assertTrue(primeira.temProxima());
@@ -112,7 +130,7 @@ class TinoTest {
         tino.registrar(EU, -5_000, "Lazer", null, HOJE);
         tino.registrar(EU, -2_000, "Lazer", null, HOJE.minusMonths(1));
 
-        Tino.Comparativo c = tino.resumo(EU, "mes", HOJE);
+        Tino.Comparativo c = tino.resumo(EU, Escala.MES);
 
         assertEquals(5_000, c.atual().despesas());
         assertEquals(2_000, c.anterior().despesas());
@@ -122,8 +140,8 @@ class TinoTest {
     void fixoUsaOSinalParaEscolherOTipo() throws SQLException {
         tino.adicionarFixo(EU, 300_000, "Salário", null);
 
-        assertEquals(1, tino.lancarFixos(EU, HOJE));
-        assertEquals(300_000, tino.resumo(EU, "mes", HOJE).atual().ganhos());
+        assertEquals(1, tino.lancarFixos(EU));
+        assertEquals(300_000, tino.resumo(EU, Escala.MES).atual().ganhos());
     }
 
     @Test
@@ -178,7 +196,7 @@ class TinoTest {
     void resumoTrazORitmoDoPeriodoEmAndamento() throws SQLException {
         tino.registrar(EU, -70_000, "Lazer", null, HOJE);
 
-        assertEquals(310_000, tino.resumo(EU, "mes", HOJE).ritmo().projecao());
+        assertEquals(310_000, tino.resumo(EU, Escala.MES).ritmo().projecao());
     }
 
     @Test
@@ -186,7 +204,7 @@ class TinoTest {
         tino.registrar(EU, -5_000, "Lazer", "cinema", HOJE);
         tino.registrar(OUTRO, -9_900, "Lazer", "segredo", HOJE);
 
-        Tino.Exportacao x = tino.exportar(EU, "mes", HOJE);
+        Tino.Exportacao x = tino.exportar(EU, Escala.MES);
 
         assertEquals(1, x.quantidade());
         assertEquals(LocalDate.of(2026, 8, 1), x.periodo().inicio());
@@ -196,7 +214,7 @@ class TinoTest {
 
     @Test
     void exportarSemLancamentoTemQuantidadeZero() throws SQLException {
-        assertEquals(0, tino.exportar(EU, "mes", HOJE).quantidade());
+        assertEquals(0, tino.exportar(EU, Escala.MES).quantidade());
     }
 
     // ------------------------------------------------------- fora do normal
@@ -220,20 +238,9 @@ class TinoTest {
         Evento.ForaDoNormal fora = assertInstanceOf(Evento.ForaDoNormal.class, e);
         assertEquals(5_000, fora.tipico());
         assertEquals(-500_000, fora.pedido().centavos());
-        assertEquals(3, tino.pagina(EU, "mes", 0, HOJE).itens().size());   // nada gravado
+        assertEquals(3, tino.pagina(EU, Escala.MES, 0).itens().size());   // nada gravado
     }
 
-    @Test
-    void confirmarGravaOPedidoForaDoNormal() throws SQLException {
-        historico("Mercado", -5_000, 3);
-        Pedido p = assertInstanceOf(Evento.ForaDoNormal.class,
-                tino.lancar(EU, new Pedido(-500_000, "Mercado", null, HOJE))).pedido();
-
-        Tino.Registro r = tino.registrar(EU, p);
-
-        assertEquals(-500_000, r.centavos());
-        assertEquals(4, tino.pagina(EU, "mes", 0, HOJE).itens().size());
-    }
 
     @Test
     void valorDentroDoNormalGravaDireto() throws SQLException {
@@ -250,14 +257,15 @@ class TinoTest {
     }
 
     @Test
-    void lancarTextoSeguraSoOItemForaDoNormal() throws SQLException {
+    void loteGravaOsNormaisEDeixaOForaPendente() throws SQLException {
         historico("Mercado", -5_000, 3);
 
-        List<Evento> eventos = tino.lancar(EU, "30 uber, 5000 mercado", HOJE);
+        List<Evento> eventos = tino.lancar(EU, "30 uber, 5000 mercado");
 
         registrado(eventos.get(0));
-        assertInstanceOf(Evento.ForaDoNormal.class, eventos.get(1));
-        assertEquals(4, tino.pagina(EU, "mes", 0, HOJE).itens().size());
+        String chave = assertInstanceOf(Evento.ForaDoNormal.class, eventos.get(1)).chave();
+        assertTrue(tino.confirmar(EU, chave).isPresent());
+        assertEquals(5, tino.pagina(EU, Escala.MES, 0).itens().size());
     }
 
     @Test
@@ -274,5 +282,162 @@ class TinoTest {
                 tino.lancar(EU, new Pedido(-500_000, null, null, HOJE)));
 
         assertEquals(Tino.PADRAO, fora.pedido().categoria());
+    }
+
+    // ------------------------------------------------- porta dos fundos fechada
+
+    private String pendente() throws SQLException {
+        historico("Mercado", -5_000, 3);
+        return assertInstanceOf(Evento.ForaDoNormal.class,
+                tino.lancar(EU, new Pedido(-500_000, "Mercado", null, HOJE))).chave();
+    }
+
+    private int gravados() throws SQLException {
+        return tino.pagina(EU, Escala.MES, 0).itens().size();
+    }
+
+    @Test
+    void foraDoNormalNaoGravaEDevolveChave() throws SQLException {
+        String chave = pendente();
+
+        assertNotNull(chave);
+        assertEquals(3, gravados());
+    }
+
+    @Test
+    void confirmarGravaOPendente() throws SQLException {
+        String chave = pendente();
+
+        Tino.Registro r = tino.confirmar(EU, chave).orElseThrow();
+
+        assertEquals(-500_000, r.centavos());
+        assertEquals("Mercado", r.categoria());
+        assertEquals(4, gravados());
+    }
+
+    @Test
+    void confirmarDuasVezesGravaUmaSo() throws SQLException {
+        String chave = pendente();
+        tino.confirmar(EU, chave);
+
+        assertEquals(Optional.empty(), tino.confirmar(EU, chave));
+        assertEquals(4, gravados());
+    }
+
+    @Test
+    void confirmarDeOutroUsuarioEhRecusado() throws SQLException {
+        String chave = pendente();
+
+        assertEquals(Optional.empty(), tino.confirmar(OUTRO, chave));
+        assertTrue(tino.confirmar(EU, chave).isPresent());
+    }
+
+    @Test
+    void descartarApagaOPendente() throws SQLException {
+        String chave = pendente();
+
+        tino.descartar(EU, chave);
+
+        assertEquals(Optional.empty(), tino.confirmar(EU, chave));
+        assertEquals(3, gravados());
+    }
+
+    @Test
+    void pendenteExpiraEm24h() throws SQLException {
+        String chave = pendente();
+        Tino depois = new Tino(conexao, Clock.offset(MEIO_DIA, Duration.ofHours(24).plusMinutes(1)));
+
+        assertEquals(Optional.empty(), depois.confirmar(EU, chave));
+    }
+
+    @Test
+    void pendenteSobreviveAReabrir(@TempDir Path pasta) throws SQLException {
+        String caminho = pasta.resolve("tino.db").toString();
+        Tino antes = Tino.abrir(caminho, MEIO_DIA);
+        antes.preparar(EU);
+        for (int i = 0; i < 3; i++) {
+            antes.lancar(EU, new Pedido(-5_000, "Mercado", null, HOJE));
+        }
+        String chave = assertInstanceOf(Evento.ForaDoNormal.class,
+                antes.lancar(EU, new Pedido(-500_000, "Mercado", null, HOJE))).chave();
+
+        assertTrue(Tino.abrir(caminho, MEIO_DIA).confirmar(EU, chave).isPresent());
+    }
+
+    // ------------------------------------------------------------ pedido válido
+
+    @Test
+    void pedidoRecusaValorZero() {
+        assertThrows(IllegalArgumentException.class, () -> new Pedido(0, "Mercado", null, HOJE));
+    }
+
+    @Test
+    void pedidoRecusaDataNula() {
+        assertThrows(IllegalArgumentException.class, () -> new Pedido(-100, "Mercado", null, null));
+    }
+
+    @Test
+    void lancarRecusaDataFutura() throws SQLException {
+        assertThrows(IllegalArgumentException.class,
+                () -> tino.lancar(EU, new Pedido(-100, "Mercado", null, HOJE.plusDays(1))));
+        assertEquals(0, gravados());
+    }
+
+    // ------------------------------------------------------ relógio e madrugada
+
+    @Test
+    void registroDeMadrugada() throws SQLException {
+        Pedido p = new Pedido(-100, "Mercado", null, HOJE);
+
+        assertTrue(registrado(new Tino(conexao, relogio("2026-08-07T00:00")).lancar(EU, p)).madrugada());
+        assertTrue(registrado(new Tino(conexao, relogio("2026-08-07T05:59")).lancar(EU, p)).madrugada());
+        assertFalse(registrado(new Tino(conexao, relogio("2026-08-07T06:00")).lancar(EU, p)).madrugada());
+        assertFalse(registrado(tino.lancar(EU, p)).madrugada());
+    }
+
+    @Test
+    void hojeSegueOFusoDoTino() throws SQLException {
+        // 01:00 UTC do dia 8 ainda é dia 7 em São Paulo.
+        Tino utc = new Tino(conexao, Clock.fixed(Instant.parse("2026-08-08T01:00:00Z"), SP));
+
+        assertEquals(HOJE, registrado(utc.lancar(EU, "50 mercado").getFirst()).data());
+    }
+
+    // -------------------------------------------------------------------- sinal
+
+    @Test
+    void editarRecusaTrocaDeSinal() throws SQLException {
+        long id = tino.registrar(EU, -5_000, "Lazer", null, HOJE).id();
+
+        assertThrows(IllegalArgumentException.class,
+                () -> tino.editar(EU, id, new Pedido(5_000, "Lazer", null, HOJE)));
+        assertEquals(-5_000, tino.buscar(EU, id).orElseThrow().centavos());
+    }
+
+    // ------------------------------------------------------------------ período
+
+    @Test
+    void escalaDesconhecidaEhRecusada() {
+        assertThrows(IllegalArgumentException.class, () -> Escala.de("quinzena"));
+    }
+
+    // ------------------------------------------------------- lote tudo ou nada
+
+    @Test
+    void loteComItemInvalidoNaoGravaNada() throws SQLException {
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                () -> tino.lancar(EU, "50 mercado, 30 uber 2099-12-31, 20 pão"));
+
+        assertTrue(e.getMessage().contains("2º item"), e.getMessage());
+        assertEquals(0, gravados());
+    }
+
+    // ------------------------------------------------- normal com janela fechada
+
+    @Test
+    void normalIgnoraLancamentosPosteriores() throws SQLException {
+        historico("Mercado", -5_000, 3);
+
+        registrado(tino.lancar(EU, new Pedido(-500_000, "Mercado", null, HOJE.minusDays(10))));
     }
 }
