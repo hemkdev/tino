@@ -87,6 +87,10 @@ public final class Tino {
         return new Tino(conexao, relogio);
     }
 
+    ZoneId fuso() {
+        return relogio.getZone();
+    }
+
     /** Para o canal interpretar uma data digitada ("07/08") com o mesmo dia do núcleo. */
     public LocalDate hoje() {
         return LocalDate.now(relogio);
@@ -263,8 +267,14 @@ public final class Tino {
             throw new IllegalArgumentException("a edição não troca gasto por ganho");
         }
         exigirPassado(p);
-        Financas.atualizar(conexao, usuario, id, p.centavos(), categoriaId(usuario, p), p.descricao(), p.data());
-        return new Registro(id, p.centavos(), nome(p), p.descricao(), p.data(), 0, null, false);
+        return emTransacao(() -> {
+            // A categoria nova só fica se o lançamento ainda existir.
+            if (!Financas.atualizar(conexao, usuario, id, p.centavos(), categoriaId(usuario, p),
+                    p.descricao(), p.data())) {
+                throw new IllegalArgumentException("esse lançamento já não existe");
+            }
+            return new Registro(id, p.centavos(), nome(p), p.descricao(), p.data(), 0, null, false);
+        });
     }
 
     public synchronized Optional<Lancamento> buscar(String usuario, long id) throws SQLException {

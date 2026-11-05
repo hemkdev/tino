@@ -301,6 +301,8 @@ public class Bot extends ListenerAdapter {
                 }
                 default -> evento.deferEdit().queue();
             }
+        } catch (IllegalArgumentException e) {
+            evento.replyEmbeds(Visual.aviso(e.getMessage())).setEphemeral(true).queue();
         } catch (Exception e) {
             LOG.error("falha no botão {}", partes[0], e);
             evento.reply("Algo deu errado do meu lado. Tenta de novo daqui a pouco.").setEphemeral(true).queue();

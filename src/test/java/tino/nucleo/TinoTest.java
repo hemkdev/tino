@@ -351,6 +351,41 @@ class TinoTest {
     }
 
     @Test
+    void pendenteAinda23h59Confirma() throws SQLException {
+        String chave = pendente();
+        Tino depois = new Tino(conexao, Clock.offset(MEIO_DIA, Duration.ofHours(23).plusMinutes(59)));
+
+        assertTrue(depois.confirmar(EU, chave).isPresent());
+    }
+
+    @Test
+    void abrirUsaOFusoDeSaoPaulo(@TempDir Path pasta) throws SQLException {
+        assertEquals(SP, Tino.abrir(pasta.resolve("tino.db").toString()).fuso());
+    }
+
+    @Test
+    void pedidoRecusaDescricaoLonga() {
+        assertThrows(IllegalArgumentException.class,
+                () -> new Pedido(-100, "Mercado", "x".repeat(201), HOJE));
+    }
+
+    @Test
+    void loteQueFalhaDesfazOPendenteCriado() throws SQLException {
+        historico("Mercado", -5_000, 3);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> tino.lancar(EU, "5000 mercado, 30 uber 2099-12-31"));
+
+        assertEquals(0, contarPendentes());
+    }
+
+    private int contarPendentes() throws SQLException {
+        try (var rs = conexao.createStatement().executeQuery("SELECT COUNT(*) FROM pendente")) {
+            return rs.getInt(1);
+        }
+    }
+
+    @Test
     void pendenteSobreviveAReabrir(@TempDir Path pasta) throws SQLException {
         String caminho = pasta.resolve("tino.db").toString();
         Tino antes = Tino.abrir(caminho, MEIO_DIA);
@@ -415,6 +450,17 @@ class TinoTest {
     }
 
     // ------------------------------------------------------------------ período
+
+    @Test
+    void escalaNaoDependeDoLocale() {
+        java.util.Locale antes = java.util.Locale.getDefault();
+        try {
+            java.util.Locale.setDefault(java.util.Locale.forLanguageTag("tr"));
+            assertEquals(Escala.DIA, Escala.de("dia"));
+        } finally {
+            java.util.Locale.setDefault(antes);
+        }
+    }
 
     @Test
     void escalaDesconhecidaEhRecusada() {

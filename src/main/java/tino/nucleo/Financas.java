@@ -750,8 +750,8 @@ final class Financas {
                 }
             }
         }
-        descartarPendente(c, usuario, chave);
-        return pedido;
+        // Só quem apagou grava: dois confirmar do mesmo pendente não viram dois lançamentos.
+        return descartarPendente(c, usuario, chave) ? pedido : Optional.empty();
     }
 
     static boolean descartarPendente(Connection c, String usuario, String chave) throws SQLException {
