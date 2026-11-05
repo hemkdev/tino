@@ -5,7 +5,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -66,6 +68,16 @@ final class Financas {
                         externo  TEXT    NOT NULL,
                         conta_id INTEGER NOT NULL REFERENCES conta(id),
                         PRIMARY KEY (provedor, externo)
+                    )""");
+            s.execute("""
+                    CREATE TABLE IF NOT EXISTS pendente (
+                        chave          TEXT    PRIMARY KEY,
+                        usuario        TEXT    NOT NULL,
+                        valor_centavos INTEGER NOT NULL,
+                        categoria      TEXT,
+                        descricao      TEXT,
+                        data           TEXT    NOT NULL,
+                        criado_em      TEXT    NOT NULL
                     )""");
         }
     }
@@ -690,16 +702,78 @@ final class Financas {
         try (PreparedStatement ps = c.prepareStatement("""
                 SELECT AVG(ABS(l.valor_centavos)), COUNT(*)
                   FROM lancamento l JOIN categoria c ON c.id = l.categoria_id
-                 WHERE l.usuario = ? AND l.data >= ?
+                 WHERE l.usuario = ? AND l.data BETWEEN ? AND ?
                    AND COALESCE(c.pai_id, c.id) =
                        (SELECT COALESCE(pai_id, id) FROM categoria WHERE id = ?)""")) {
             ps.setString(1, usuario);
             ps.setString(2, hoje.minusDays(90).toString());
-            ps.setLong(3, categoriaId);
+            ps.setString(3, hoje.toString());
+            ps.setLong(4, categoriaId);
             try (ResultSet rs = ps.executeQuery()) {
                 // Menos de 3 lançamentos não formam padrão — qualquer valor pareceria atípico.
                 return rs.next() && rs.getInt(2) >= 3 ? rs.getLong(1) : 0;
             }
+        }
+    }
+
+    // ------------------------------------------------------------- pendentes
+
+    static void guardarPendente(Connection c, String chave, String usuario, Pedido p, Instant agora)
+            throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("""
+                INSERT INTO pendente (chave, usuario, valor_centavos, categoria, descricao, data, criado_em)
+                VALUES (?,?,?,?,?,?,?)""")) {
+            ps.setString(1, chave);
+            ps.setString(2, usuario);
+            ps.setLong(3, p.centavos());
+            ps.setString(4, p.categoria());
+            ps.setString(5, p.descricao());
+            ps.setString(6, p.data().toString());
+            ps.setString(7, instante(agora));
+            ps.executeUpdate();
+        }
+    }
+
+    /** Apaga e devolve o pendente, se for da pessoa e tiver sido criado depois de {@code limite}. */
+    static Optional<Pedido> retirarPendente(Connection c, String usuario, String chave, Instant limite)
+            throws SQLException {
+        Optional<Pedido> pedido = Optional.empty();
+        try (PreparedStatement ps = c.prepareStatement("""
+                SELECT valor_centavos, categoria, descricao, data, criado_em
+                  FROM pendente WHERE chave = ? AND usuario = ?""")) {
+            ps.setString(1, chave);
+            ps.setString(2, usuario);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next() && Instant.parse(rs.getString(5)).isAfter(limite)) {
+                    pedido = Optional.of(new Pedido(rs.getLong(1), rs.getString(2), rs.getString(3),
+                            LocalDate.parse(rs.getString(4))));
+                }
+            }
+        }
+        descartarPendente(c, usuario, chave);
+        return pedido;
+    }
+
+    static boolean descartarPendente(Connection c, String usuario, String chave) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement(
+                "DELETE FROM pendente WHERE chave = ? AND usuario = ?")) {
+            ps.setString(1, chave);
+            ps.setString(2, usuario);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    /** Truncado ao segundo, o ISO-8601 em UTC tem largura fixa: a ordem do texto é a do tempo. */
+    private static String instante(Instant i) {
+        return i.truncatedTo(ChronoUnit.SECONDS).toString();
+    }
+
+    static void expirarPendentes(Connection c, String usuario, Instant limite) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement(
+                "DELETE FROM pendente WHERE usuario = ? AND criado_em <= ?")) {
+            ps.setString(1, usuario);
+            ps.setString(2, instante(limite));
+            ps.executeUpdate();
         }
     }
 

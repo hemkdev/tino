@@ -18,7 +18,6 @@ import net.dv8tion.jda.api.interactions.components.text.TextInputStyle;
 import net.dv8tion.jda.api.interactions.modals.Modal;
 
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -86,9 +85,9 @@ final class Visual {
 
     static MessageEmbed registro(long centavos, String categoria, String descricao,
                                  LocalDate data, long id,
-                                 long acumulado, String categoriaNova, LocalTime agora) {
+                                 long acumulado, String categoriaNova, boolean madrugada) {
         boolean gasto = centavos < 0;
-        Estado estado = Estado.aoRegistrar(agora);
+        Estado estado = Estado.aoRegistrar(madrugada);
         String valor = "**%s** em %s.".formatted(Dinheiro.formatar(Math.abs(centavos)), categoria);
         EmbedBuilder e = new EmbedBuilder()
                 .setColor(gasto ? VERMELHO : VERDE)
@@ -114,7 +113,7 @@ final class Visual {
 
     static MessageEmbed registro(Tino.Registro r) {
         return registro(r.centavos(), r.categoria(), r.descricao(), r.data(), r.id(),
-                r.acumulado(), r.parecida(), LocalTime.now());
+                r.acumulado(), r.parecida(), r.madrugada());
     }
 
     /** Pergunta antes de gravar: quase sempre é {@code 5000} digitado no lugar de {@code 50,00}. */
@@ -157,7 +156,7 @@ final class Visual {
         return new EmbedBuilder()
                 .setColor(totalGasto > totalGanho ? VERMELHO : VERDE)
                 .setAuthor("Anotei %d de uma vez!".formatted(linhas.size()))
-                .setThumbnail(Estado.aoRegistrar(LocalTime.now()).url())
+                .setThumbnail(Estado.aoRegistrar(registros.getFirst().madrugada()).url())
                 .setDescription(String.join("\n", linhas))
                 .setFooter("gastos %s · ganhos %s · veja em /lancamentos".formatted(
                         Dinheiro.formatar(totalGasto), Dinheiro.formatar(totalGanho)))

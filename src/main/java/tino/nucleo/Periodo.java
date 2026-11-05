@@ -7,14 +7,14 @@ import java.time.temporal.ChronoUnit;
 /** Intervalo fechado de datas: um dia, uma semana (segunda a domingo), um mês ou um ano. */
 public record Periodo(LocalDate inicio, LocalDate fim, ChronoUnit unidade) {
 
-    public static Periodo de(String tipo, LocalDate hoje) {
-        return switch (tipo) {
-            case "dia" -> new Periodo(hoje, hoje, ChronoUnit.DAYS);
-            case "semana" -> new Periodo(
+    public static Periodo de(Escala escala, LocalDate hoje) {
+        return switch (escala) {
+            case DIA -> new Periodo(hoje, hoje, ChronoUnit.DAYS);
+            case SEMANA -> new Periodo(
                     hoje.with(DayOfWeek.MONDAY), hoje.with(DayOfWeek.SUNDAY), ChronoUnit.WEEKS);
-            case "ano" -> new Periodo(
+            case ANO -> new Periodo(
                     hoje.withDayOfYear(1), hoje.withDayOfYear(hoje.lengthOfYear()), ChronoUnit.YEARS);
-            default -> new Periodo(
+            case MES -> new Periodo(
                     hoje.withDayOfMonth(1), hoje.withDayOfMonth(hoje.lengthOfMonth()), ChronoUnit.MONTHS);
         };
     }

@@ -15,7 +15,8 @@ public sealed interface Evento {
     /**
      * Não gravado: o valor está muito acima do que a pessoa costuma lançar nessa categoria,
      * e o mais provável é erro de digitação ({@code 5000} no lugar de {@code 50,00}). O canal
-     * pergunta e, se ela confirmar, grava com {@link Tino#registrar(String, Pedido)}.
+     * pergunta e responde com {@link Tino#confirmar(String, String)} ou
+     * {@link Tino#descartar(String, String)}, usando a {@code chave}.
      */
-    record ForaDoNormal(Pedido pedido, long tipico) implements Evento {}
+    record ForaDoNormal(String chave, Pedido pedido, long tipico) implements Evento {}
 }

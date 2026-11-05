@@ -199,7 +199,7 @@ public final class Entrada {
     // --------------------------------------------------------------- consulta
 
     /** O que a pessoa quis ver, quando escreveu em vez de usar um comando. */
-    public record Consulta(String tipo, String periodo) {}
+    public record Consulta(String tipo, Escala periodo) {}
 
     // Listas de entradas, e não Map.of, porque a ordem desempata: Map.of itera em ordem aleatória.
     private static final List<Map.Entry<String, List<String>>> GATILHOS = List.of(
@@ -212,11 +212,11 @@ public final class Entrada {
             Map.entry("ajuda", List.of("ajuda", "help", "como usa", "como funciona", "comandos", "o que faz")));
 
     /** Do mais curto para o mais longo: com dois períodos na frase, o mais específico vence. */
-    private static final List<Map.Entry<String, List<String>>> PERIODOS = List.of(
-            Map.entry("dia", List.of("hoje", "de hoje", "do dia")),
-            Map.entry("semana", List.of("semana")),
-            Map.entry("mes", List.of("mes")),
-            Map.entry("ano", List.of("ano")));
+    private static final List<Map.Entry<Escala, List<String>>> PERIODOS = List.of(
+            Map.entry(Escala.DIA, List.of("hoje", "de hoje", "do dia")),
+            Map.entry(Escala.SEMANA, List.of("semana")),
+            Map.entry(Escala.MES, List.of("mes")),
+            Map.entry(Escala.ANO, List.of("ano")));
 
     /**
      * Reconhece pedidos escritos em texto: "resumo", "quanto gastei essa semana",
@@ -251,7 +251,7 @@ public final class Entrada {
                 }
             }
         }
-        return new Consulta(tipo, "mes");
+        return new Consulta(tipo, Escala.MES);
     }
 
     /** Evita que "categoria" case dentro de outra palavra maior. */
