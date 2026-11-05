@@ -1,6 +1,6 @@
 # O personagem
 
-<img src="marca/avatar-animado.gif" width="160" align="right" alt="O Tino respirando">
+<img src="marca/svg/ocioso.svg" width="140" align="right" alt="O Tino respirando">
 
 O Tino é um brotinho que guarda moeda: corpo redondo azul-piscina, um broto de
 duas folhas na cabeça e uma moeda no colo. Dinheiro que cresce devagar. É uma
@@ -17,14 +17,14 @@ núcleo dizer o que aconteceu (`Evento`) e o canal decidir como mostrar.
 
 | | Estado | Quando | Fala |
 |---|---|---|---|
-| <img src="marca/estados/ocioso.gif" width="72"> | ocioso | esperando | "Me manda um gasto que eu anoto." |
-| <img src="marca/estados/sucesso.gif" width="72"> | sucesso | lançamento gravado | "Registrado: **R$ 132,40** em Mercado." |
-| <img src="marca/estados/alerta.gif" width="72"> | alerta | valor muito acima do normal da pessoa | "R$ 4.800 em Moradia? Seu normal é 1.800." [Tá certo] [Corrigir] |
-| <img src="marca/estados/erro.gif" width="72"> | erro | não entendeu a mensagem, ou algo falhou | "Não achei o valor. Manda assim: `23,50 uber`." |
-| <img src="marca/estados/dormindo.gif" width="72"> | dormindo | lançamento entre 0h e 6h | "Hm… anotado. Vai dormir também." |
-| <img src="marca/estados/ouvindo.gif" width="72"> | ouvindo | mensagem de voz | "Pode falar, tô ouvindo." |
-| <img src="marca/estados/pensando.gif" width="72"> | pensando | interpretando | "Deixa eu ver isso…" |
-| <img src="marca/estados/escrevendo.gif" width="72"> | escrevendo | montando a resposta | (digitando…) |
+| <img src="marca/svg/ocioso.svg" width="72"> | ocioso | esperando | "Me manda um gasto que eu anoto." |
+| <img src="marca/svg/sucesso.svg" width="72"> | sucesso | lançamento gravado | "Registrado: **R$ 132,40** em Mercado." |
+| <img src="marca/svg/alerta.svg" width="72"> | alerta | valor muito acima do normal da pessoa | "R$ 4.800 em Moradia? Seu normal é 1.800." [Tá certo] [Corrigir] |
+| <img src="marca/svg/erro.svg" width="72"> | erro | não entendeu a mensagem, ou algo falhou | "Não achei o valor. Manda assim: `23,50 uber`." |
+| <img src="marca/svg/dormindo.svg" width="72"> | dormindo | lançamento entre 0h e 6h | "Hm… anotado. Vai dormir também." |
+| <img src="marca/svg/ouvindo.svg" width="72"> | ouvindo | mensagem de voz | "Pode falar, tô ouvindo." |
+| <img src="marca/svg/pensando.svg" width="72"> | pensando | interpretando | "Deixa eu ver isso…" |
+| <img src="marca/svg/escrevendo.svg" width="72"> | escrevendo | montando a resposta | (digitando…) |
 
 No Discord, os cinco primeiros já aparecem como miniatura das respostas de
 lançamento, dos avisos e das boas-vindas; resumo, listas e confirmações simples

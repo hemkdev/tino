@@ -1,168 +1,152 @@
-<img src="docs/marca/avatar-animado.gif" width="160" align="right" alt="O Tino, um brotinho azul com uma moeda no colo">
+<div align="center">
+
+[![CI](https://img.shields.io/github/actions/workflow/status/hemkdev/tino/ci.yml?branch=main&style=flat&logo=githubactions&logoColor=white&label=CI)](https://github.com/hemkdev/tino/actions)
+[![Licença](https://img.shields.io/github/license/hemkdev/tino?style=flat&label=licen%C3%A7a)](LICENSE)
+[![Adicionar ao Discord](https://img.shields.io/badge/adicionar%20ao-Discord-5865F2?style=flat&logo=discord&logoColor=white)](https://discord.com/oauth2/authorize?client_id=1535474778180292628)
+
+![Java](https://img.shields.io/badge/Java-25-ED8B00?style=flat&logo=openjdk&logoColor=white)
+![JDA](https://img.shields.io/badge/JDA-5.6-5865F2?style=flat&logo=discord&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-3-003B57?style=flat&logo=sqlite&logoColor=white)
+
+<img src="docs/marca/svg/ocioso.svg" width="160" alt="O Tino, um brotinho azul com uma moeda no colo">
+
+</div>
 
 # Tino
 
-Finanças pessoais por conversa, em Java. Você escreve o gasto como falaria e o
-Tino anota, categoriza e mostra para onde o dinheiro está indo.
+Finanças pessoais **por conversa**: você escreve o gasto como falaria e o Tino anota, categoriza e
+mostra para onde o dinheiro vai. O nome vem de *ter tino*, juízo. Ele é um brotinho que guarda
+moeda, sério com o dinheiro e gentil com a pessoa.
 
-O nome vem de *ter tino*: juízo, discernimento. Ele é um brotinho que guarda
-moeda, **sério com o dinheiro e gentil com a pessoa**.
+Hoje o canal é o **Discord**. O núcleo não depende dele, e site, Telegram e um conector MCP são os
+próximos canais sobre a mesma conta.
+
+## O que é
 
 ```
 50 mercado
-50 mercado 07/08 pão e leite
 +3000 salário
 50 mercado, 30 uber, 12 café
 ```
 
-Sem barra, sem formulário. Hoje o canal é o Discord; o núcleo já não depende
-dele, e Telegram, site e um conector MCP são os próximos.
+Na DM, sem barra e sem formulário. Também vale perguntar: **quanto gastei esse mês?**, **extrato
+de hoje**. Cada lançamento mostra o acumulado da categoria no mês, com botões para desfazer e
+editar, e o `/resumo` traz as categorias em barras, a variação sobre o período anterior e a
+projeção do mês.
 
-## O personagem
+## Os estados
 
-| <img src="docs/marca/estados/sucesso.gif" width="96"> | <img src="docs/marca/estados/alerta.gif" width="96"> | <img src="docs/marca/estados/erro.gif" width="96"> | <img src="docs/marca/estados/dormindo.gif" width="96"> |
+| Anotou | Valor fora do normal | Não entendeu | De madrugada |
 |:---:|:---:|:---:|:---:|
-| anotou | valor fora do normal | não entendeu | registro de madrugada |
-| "Registrado: **R$ 132,40** em Mercado." | "R$ 4.800 em Moradia? Seu normal é 1.800." | "Não achei o valor. Manda assim: `23,50 uber`." | "Hm… anotado. Vai dormir também." |
+| <img src="docs/marca/svg/sucesso.svg" width="110"> | <img src="docs/marca/svg/alerta.svg" width="110"> | <img src="docs/marca/svg/erro.svg" width="110"> | <img src="docs/marca/svg/dormindo.svg" width="110"> |
+| "Registrado: **R$ 132,40** em Mercado." | "R$ 4.800 em Moradia? Seu normal é 1.800." **[Tá certo] [Corrigir]** | "Não achei o valor. Manda assim: `23,50 uber`." | "Hm… anotado. Vai dormir também." |
 
-Cada reação responde a algo que aconteceu de verdade, não é enfeite. No alerta, ele
-pergunta com **[Tá certo]** e **[Corrigir]** e só grava depois da resposta: o
-`5000` digitado no lugar de `50,00` não vira histórico. Estados, regra das falas
-e próximos traços em [`docs/PERSONAGEM.md`](docs/PERSONAGEM.md).
+No alerta ele **só grava depois da resposta**: o `5000` digitado no lugar de `50,00` não vira
+histórico. Toda pergunta vem com botões, e quem julga o gasto é a pessoa, nunca o bot.
 
-## Usar
+## Como funciona
 
-**[Adicionar o Tino](https://discord.com/oauth2/authorize?client_id=1535474778180292628)**
+```mermaid
+flowchart LR
+    msg["Mensagem no Discord<br/>50 mercado"] --> bot["Bot<br/>tino.discord"]
+    bot --> tino["Tino<br/>tino.nucleo"]
+    tino --> entrada["Entrada<br/>interpreta o texto"]
+    tino --> fin[("Financas<br/>SQLite")]
+    tino --> ev{"Evento"}
+    ev -- Registrado --> vis["Visual<br/>resposta com o Tino"]
+    ev -- ForaDoNormal --> pend["Pendentes<br/>pergunta antes"]
+    pend -. "Tá certo" .-> tino
+```
 
-Instale na sua conta (*Add to my apps*) e abra uma conversa com ele. O primeiro
-comando já cria suas categorias iniciais. Comece com `/ajuda`.
-
-Cada pessoa vê apenas os próprios lançamentos. O que é guardado, onde fica e como
-apagar está em [`docs/PRIVACIDADE.md`](docs/PRIVACIDADE.md).
+O canal só recebe a mensagem e formata a resposta. Quem interpreta, calcula e grava é o núcleo:
+`Tino.lancar` devolve um `Evento`, que é `Registrado` ou `ForaDoNormal`. Quando o valor passa de
+5× a média recente da categoria, nada é gravado e o canal pergunta antes; confirmado, chama
+`Tino.registrar`. Um canal novo (site, Telegram, MCP) fala só com a classe `Tino`.
 
 ## Comandos
 
 | Comando | O que faz |
 |---|---|
-| `/gasto <valor> [categoria] [descrição] [data]` | Registra uma despesa. Sem categoria, vai para Outros |
-| `/ganho <valor> [categoria] [descrição] [data]` | Registra uma receita |
-| `/lancar <texto>` | Vários de uma vez: `50 mercado, 30 uber, +3000 salário` |
-| `/resumo [período]` | Por categoria, com saldo, variação e projeção do mês |
-| `/lancamentos [período]` | Lista paginada, com os ids |
-| `/exportar [período]` | Anexa um CSV |
-| `/remover <id>` | Apaga um lançamento |
-| `/categoria` | `listar`, `criar`, `renomear`, `excluir` |
-| `/fixo` | Aluguel e assinaturas, lançados de uma vez |
-| `/ajuda` | Exemplos de uso |
+| `/gasto` · `/ganho` | Registra um valor, com categoria, descrição e data opcionais |
+| `/lancar` | Vários de uma vez: `50 mercado, 30 uber, +3000 salário` |
+| `/resumo` | Por categoria, com variação e projeção do mês |
+| `/lancamentos` · `/exportar` | Lista com os ids · CSV |
+| `/remover` · `/categoria` · `/fixo` | Apagar, organizar categorias, lançamentos fixos |
 
-Período aceita `hoje`, `semana`, `mês` (padrão) ou `ano`.
+Cada pessoa vê só os próprios dados. O que é guardado e como apagar está em
+[PRIVACIDADE.md](docs/PRIVACIDADE.md).
 
-Na DM você também pode só perguntar, sem comando: **quanto gastei esse mês?**,
-**resumo da semana**, **extrato de hoje**, **meus fixos**, **ajuda**.
+## Garantias
 
-### Formato do texto livre
+- **Toda query filtra pela conta.** Sem exceção: ninguém lê o lançamento de outra pessoa.
+- **Dinheiro em centavos inteiros.** Nunca `double`: o SQLite não tem decimal, e ponto flutuante
+  em dinheiro é bug.
+- **Valor estranho não grava sozinho.** Acima de 5× a média recente da categoria, ele pergunta
+  antes, e o pedido pendente tem chave aleatória que só a dona confirma.
+- **A fronteira é do compilador, não da disciplina.** `Financas`, que tem o SQL, é
+  package-private: chamar o banco de fora do núcleo não compila. E o `Evento` é `sealed`: um
+  evento novo que algum canal esqueça de tratar também não compila.
+- **Data futura é rejeitada**, e o valor precisa ser maior que zero, com no máximo duas casas.
+- **Nada de token ou dado financeiro em log.**
+- **Testes a cada PR**, contra SQLite em memória, no GitHub Actions (`mvn verify`).
 
-```
-[+]valor  categoria  [data]  [descrição]
-```
+As regras completas e o porquê de cada uma estão em [banco.md](docs/banco.md) e
+[decisoes.md](docs/decisoes.md).
 
-O `+` marca ganho; sem sinal é gasto. Depois da categoria, um campo que começa
-com número é lido como data, e com letra como descrição — por isso a data, se
-houver, vem antes.
-
-Valor aceita `50`, `50,00`, `1.234,56` e `R$ 50`. Data aceita `7`, `07/08` e
-`2026-08-07`, sempre no passado.
-
-Subcategoria se escreve com `>`: `50 alimentação > mercado`. No resumo, ela soma
-na categoria principal.
-
-## Como funciona
-
-Cada registro avulso traz botões de **Desfazer** e **Editar** e mostra o
-acumulado da categoria no mês; vários de uma vez vêm num resumo com os ids. O
-resumo mostra as categorias em barras comparativas, a variação sobre o período
-anterior e a projeção de quanto o mês deve fechar no ritmo atual.
-
-Categorias são criadas conforme você usa, com limite de 10 principais e 20
-subcategorias para cada lado (gastos e ganhos), que são listas separadas.
-
-## Arquitetura
-
-```
-tino/nucleo/    regras, consultas e dinheiro — não conhece JDA
-tino/discord/   o canal Discord: eventos do JDA, embeds e botões
-```
-
-O núcleo expõe uma classe, `Tino`, com os casos de uso. `Financas`, que fala SQL,
-é package-private: nenhum canal consegue gravar sem passar pelo `Tino` e pelo
-lock dele, e quem garante isso é o compilador, não a disciplina.
-
-Lançar devolve um `Evento`, uma `sealed interface`. Cada canal decide como
-mostrar, e o `switch` precisa cobrir todos os casos para compilar:
-
-```java
-return switch (tino.lancar(usuario, pedido)) {
-    case Evento.Registrado(Tino.Registro r) -> registro(usuario, r);
-    case Evento.ForaDoNormal f -> perguntar(usuario, f);
-};
-```
-
-Sem framework e sem ORM: Java 25, JDA, SQLite e JUnit. Os testes rodam contra
-SQLite em memória, e a suíte inteira leva menos de um segundo.
-
-```bash
-mvn test
-```
-
-Banco, regras inegociáveis e o porquê de cada escolha em
-[`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
-
-## Rodar você mesmo
+## Rodar
 
 Precisa de Java 25 e Maven.
 
 ```bash
 mvn package
-export DISCORD_TOKEN="seu-token"
-java -jar target/tino.jar
+DISCORD_TOKEN="seu-token" java -jar target/tino.jar
 ```
 
-Os dados ficam num arquivo SQLite (`tino.db`, ao lado do jar). Para
-backup, `sqlite3 tino.db ".backup copia.db"`.
+Os dados ficam em `tino.db` (ou no caminho de `BANCO_CAMINHO`). `DISCORD_GUILD_ID` registra os
+comandos numa guild só, o que é imediato; sem ela o registro é global, necessário para a DM.
 
-| Variável | Obrigatória | Para quê |
-|---|---|---|
-| `DISCORD_TOKEN` | sim | Token do bot |
-| `DISCORD_GUILD_ID` | não | Registra os comandos só nessa guild, o que é imediato. Sem ela, o registro é global — necessário para funcionar na DM |
-| `BANCO_CAMINHO` | não | Onde guardar o banco. Padrão: `tino.db` |
+## Estrutura
 
-Para criar o seu: [Discord Developer Portal](https://discord.com/developers/applications)
-→ nova aplicação → **Bot** → *Reset Token*. Não precisa de nenhuma intent
-privilegiada. Em **Installation**, habilite *User Install* para que funcione em
-conversa privada.
+```
+src/main/java/tino/
+├── nucleo/    Tino (casos de uso), Financas (SQL), Entrada, Dinheiro, Evento e os records do domínio
+└── discord/   Bot (eventos do JDA), Visual (embeds e botões), Estado, Pendentes
+src/test/java/tino/   testes do núcleo e do canal, contra SQLite em memória
+docs/
+├── decisoes.md       o que foi escolhido, o que foi recusado e por quê
+├── banco.md          esquema e regras que não são negociáveis
+├── personagem.md     estados, falas e os próximos traços
+├── PRIVACIDADE.md    o que é guardado e como apagar
+└── marca/            o Tino em SVG, GIF e PNG
+.github/workflows/    CI: mvn verify em push na main e em PR
+```
 
-## Próximos passos
+## Limitações
 
-- Traços do personagem que dependem de histórico: a planta que cresce com a
-  constância, a ausência, abraçar e esconder a moeda.
-- Canais novos sobre o mesmo núcleo e a mesma conta: site para lançar e
-  visualizar, Telegram, e um conector MCP para um modelo de linguagem ler e lançar.
-- Rodar fora da máquina pessoal, numa VPS com disco persistente.
+- **Só Discord por enquanto.** O núcleo já é independente, mas site, Telegram e MCP ainda não existem.
+- **Ainda não roda numa VPS.** O bot só responde enquanto o processo estiver de pé.
+- **Pedido à espera de confirmação fica em memória.** Se o bot reiniciar, ele se perde e o botão
+  responde que expirou.
+- **Parte das regras é checada só na entrada de texto.** Valor positivo e data não futura são
+  validados ao interpretar a mensagem (`Dinheiro`, `Entrada`). Um canal que monte o pedido direto
+  ainda não passa por essa checagem.
+- **Feito para uso pessoal.** Um processo, uma conexão e um lock. Se um dia houver concorrência
+  de verdade, a troca é por um pool, sem mexer na API.
 
-## Sobre a construção
+## Roadmap
 
-Escrito em par com [Claude Code](https://claude.com/claude-code). A primeira
-versão saiu em agosto de 2026, com uma arquitetura hexagonal completa que foi
-deliberadamente reduzida quando ficou claro que a estrutura era maior que o
-problema. Em outubro o projeto foi retomado parte por parte: bugs do parser
-corrigidos com teste primeiro, o núcleo separado do Discord, contas próprias para
-mais de um canal e o personagem desenhado do zero. Os commits de cada fase
-continuam no histórico.
+- [x] Núcleo separado do Discord, com a fronteira garantida pelo compilador
+- [x] Personagem nas respostas e alerta que pergunta antes de gravar
+- [ ] Traços do personagem: planta, ausência, impulso, vigiar categoria
+- [ ] Site e conector MCP sobre a mesma conta
+- [ ] No ar numa VPS
 
-Referências de produto: Porquim IA, pelo personagem que dá
-cara às finanças, e [money-flow](https://github.com/guithepc/money-flow), pelo
-bot que lança e pelo painel que mostra.
+## Créditos
 
-## Licença
+A técnica de animação do personagem (camadas em SVG, com cada estado animado por CSS) veio do
+estudo do [LabDots](https://github.com/vitorcgo/LabDots), de Vitor Cavalcante, licenciado em MIT.
+O código daqui foi escrito do zero sobre essa ideia.
 
-MIT — veja [LICENSE](LICENSE).
+## Apoie
+
+Se o repo te ajudou, deixa uma ⭐. Valeu :)
