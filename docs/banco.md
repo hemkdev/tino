@@ -14,6 +14,7 @@ erDiagram
     categoria |o--o{ categoria : "pai_id"
     categoria ||--o{ lancamento : "categoria_id"
     categoria ||--o{ recorrente : "categoria_id"
+    conta ||--o{ pendente : "usuario"
 
     conta {
         integer id PK
@@ -45,9 +46,23 @@ erDiagram
         integer categoria_id FK
         text descricao
     }
+    pendente {
+        text chave PK
+        text usuario
+        integer valor_centavos
+        text categoria
+        text descricao
+        text data
+        text criado_em
+    }
 ```
 
 Um índice só: `idx_consulta ON lancamento (usuario, data)`, que serve a todo resumo e listagem.
+
+`pendente` guarda o lançamento fora do normal que espera a pessoa responder [Tá certo] ou
+[Corrigir]. A chave é aleatória e vai no botão; só a dona confirma, uma vez. Expira em 24 h, e
+cada lançamento novo apaga os expirados da pessoa, sem job. `criado_em` é ISO-8601 em UTC
+truncado ao segundo, para a ordem do texto ser a do tempo.
 
 ## Escolhas
 
@@ -86,6 +101,6 @@ Estas falham em silêncio se quebradas, então valem para qualquer código que e
 6. Nada de token ou dado financeiro em log.
 
 Nenhuma delas é constraint do banco: o SQLite aqui não tem `CHECK` nem chave estrangeira para
-`usuario`, então quem garante é o núcleo. A 1 e a 3 hoje são checadas na interpretação da entrada
-(`Dinheiro`, `Entrada`); levá-las para o `Pedido`, para valerem também em canais que montam o
-pedido direto, é trabalho pendente.
+`usuario`, então quem garante é o núcleo. `Dinheiro` garante as duas casas; `Pedido` recusa valor
+zero e data nula; o `Tino` recusa data futura pelo próprio relógio, então canal que monta o pedido
+direto passa pelas mesmas regras.
