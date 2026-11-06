@@ -229,6 +229,17 @@ class VisualTest {
 
     // ------------------------------------------------------------ personagem
 
+    @Test
+    void naoEntendiMostraComoFazer() {
+        MessageEmbed e = Visual.naoEntendi();
+
+        assertTrue(broto(e).endsWith("/erro.gif"));
+        assertTrue(e.getDescription().contains("Não entendi"), e.getDescription());
+        assertTrue(e.getDescription().contains("`50 mercado`"));
+        assertTrue(e.getDescription().contains("`+3000 salário`"));
+        assertTrue(e.getDescription().contains("/ajuda"));
+    }
+
     private static String broto(MessageEmbed e) {
         return e.getThumbnail().getUrl();
     }
