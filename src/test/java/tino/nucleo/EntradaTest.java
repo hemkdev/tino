@@ -293,17 +293,17 @@ class EntradaTest {
 
     @Test
     void extraiOPeriodoDaFrase() {
-        assertEquals("dia", Entrada.consulta("quanto gastei hoje").periodo());
-        assertEquals("semana", Entrada.consulta("resumo da semana").periodo());
-        assertEquals("ano", Entrada.consulta("quanto gastei esse ano").periodo());
-        assertEquals("mes", Entrada.consulta("resumo").periodo());   // padrão
+        assertEquals(Escala.DIA, Entrada.consulta("quanto gastei hoje").periodo());
+        assertEquals(Escala.SEMANA, Entrada.consulta("resumo da semana").periodo());
+        assertEquals(Escala.ANO, Entrada.consulta("quanto gastei esse ano").periodo());
+        assertEquals(Escala.MES, Entrada.consulta("resumo").periodo());   // padrão
     }
 
     @Test
     void periodoMaisCurtoGanhaQuandoHaMaisDeUm() {
-        assertEquals("dia", Entrada.consulta("resumo de hoje e do mes").periodo());
-        assertEquals("semana", Entrada.consulta("resumo da semana desse ano").periodo());
-        assertEquals("mes", Entrada.consulta("resumo do mes desse ano").periodo());
+        assertEquals(Escala.DIA, Entrada.consulta("resumo de hoje e do mes").periodo());
+        assertEquals(Escala.SEMANA, Entrada.consulta("resumo da semana desse ano").periodo());
+        assertEquals(Escala.MES, Entrada.consulta("resumo do mes desse ano").periodo());
     }
 
     @Test

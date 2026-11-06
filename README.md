@@ -54,14 +54,14 @@ flowchart LR
     tino --> fin[("Financas<br/>SQLite")]
     tino --> ev{"Evento"}
     ev -- Registrado --> vis["Visual<br/>resposta com o Tino"]
-    ev -- ForaDoNormal --> pend["Pendentes<br/>pergunta antes"]
-    pend -. "Tá certo" .-> tino
+    ev -- ForaDoNormal --> pend["Visual<br/>pergunta antes"]
+    pend -. "Tá certo: confirmar(chave)" .-> tino
 ```
 
 O canal só recebe a mensagem e formata a resposta. Quem interpreta, calcula e grava é o núcleo:
 `Tino.lancar` devolve um `Evento`, que é `Registrado` ou `ForaDoNormal`. Quando o valor passa de
-5× a média recente da categoria, nada é gravado e o canal pergunta antes; confirmado, chama
-`Tino.registrar`. Um canal novo (site, Telegram, MCP) fala só com a classe `Tino`.
+5× a média recente da categoria, o núcleo guarda o pedido como pendente e o canal pergunta antes;
+a resposta volta por `Tino.confirmar` ou `Tino.descartar`. Um canal novo (site, Telegram, MCP) fala só com a classe `Tino`.
 
 ## Comandos
 
@@ -110,7 +110,7 @@ comandos numa guild só, o que é imediato; sem ela o registro é global, necess
 ```
 src/main/java/tino/
 ├── nucleo/    Tino (casos de uso), Financas (SQL), Entrada, Dinheiro, Evento e os records do domínio
-└── discord/   Bot (eventos do JDA), Visual (embeds e botões), Estado, Pendentes
+└── discord/   Bot (eventos do JDA), Visual (embeds e botões), Estado
 src/test/java/tino/   testes do núcleo e do canal, contra SQLite em memória
 docs/
 ├── decisoes.md       o que foi escolhido, o que foi recusado e por quê
@@ -137,6 +137,7 @@ docs/
 
 - [x] Núcleo separado do Discord, com a fronteira garantida pelo compilador
 - [x] Personagem nas respostas e alerta que pergunta antes de gravar
+- [x] Regras no núcleo: pendentes que sobrevivem a reinício, relógio e fuso únicos
 - [ ] Traços do personagem: planta, ausência, impulso, vigiar categoria
 - [ ] Site e conector MCP sobre a mesma conta
 - [ ] No ar numa VPS

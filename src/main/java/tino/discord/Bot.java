@@ -2,6 +2,7 @@ package tino.discord;
 
 import tino.nucleo.Dinheiro;
 import tino.nucleo.Entrada;
+import tino.nucleo.Escala;
 import tino.nucleo.Evento;
 import tino.nucleo.Lancamento;
 import tino.nucleo.Pedido;
@@ -43,8 +44,6 @@ public class Bot extends ListenerAdapter {
     private static final Logger LOG = LoggerFactory.getLogger(Bot.class);
 
     private final Tino tino;
-
-    private final Pendentes pendentes = new Pendentes();
 
     private Bot(Tino tino) {
         this.tino = tino;
@@ -279,30 +278,40 @@ public class Bot extends ListenerAdapter {
                     }
                     evento.replyModal(Visual.edicao(partes[1], alvo.get())).queue();
                 }
-                case "confirmar", "corrigir" -> {
-                    Pedido pedido = pendentes.retirar(partes[1], partes[2]);
-                    if (pedido == null) {
-                        // Clique duplo ou reinício: não mexe na mensagem, que pode já mostrar o registro.
-                        evento.reply("Esse aviso já foi respondido ou expirou.").setEphemeral(true).queue();
-                    } else if (partes[0].equals("confirmar")) {
-                        Tino.Registro r = tino.registrar(partes[1], pedido);
-                        evento.editMessageEmbeds(Visual.registro(r))
-                                .setComponents(Visual.acoesDoRegistro(partes[1], r.id())).queue();
+                case "confirmar" -> {
+                    Optional<Tino.Registro> r = tino.confirmar(partes[1], partes[2]);
+                    if (r.isEmpty()) {
+                        jaRespondido(evento);
+                    } else {
+                        evento.editMessageEmbeds(Visual.registro(r.get()))
+                                .setComponents(Visual.acoesDoRegistro(partes[1], r.get().id())).queue();
+                    }
+                }
+                case "corrigir" -> {
+                    if (!tino.descartar(partes[1], partes[2])) {
+                        jaRespondido(evento);
                     } else {
                         evento.editMessageEmbeds(Visual.ok("Não anotei. Manda de novo com o valor certo."))
                                 .setComponents().queue();
                     }
                 }
                 case "pag" -> {
-                    Resposta r = pagina(partes[1], partes[2], Integer.parseInt(partes[3]));
+                    Resposta r = pagina(partes[1], Escala.de(partes[2]), Integer.parseInt(partes[3]));
                     evento.editMessageEmbeds(r.embed()).setComponents(r.botoes()).queue();
                 }
                 default -> evento.deferEdit().queue();
             }
+        } catch (IllegalArgumentException e) {
+            evento.replyEmbeds(Visual.aviso(e.getMessage())).setEphemeral(true).queue();
         } catch (Exception e) {
             LOG.error("falha no botão {}", partes[0], e);
             evento.reply("Algo deu errado do meu lado. Tenta de novo daqui a pouco.").setEphemeral(true).queue();
         }
+    }
+
+    /** Clique duplo ou expirado: não mexe na mensagem, que pode já mostrar o registro. */
+    private static void jaRespondido(ButtonInteractionEvent evento) {
+        evento.reply("Esse aviso já foi respondido ou expirou.").setEphemeral(true).queue();
     }
 
     @Override
@@ -316,12 +325,15 @@ public class Bot extends ListenerAdapter {
             long id = Long.parseLong(partes[2]);
             String usuario = partes[1];
 
+            // O formulário mostra o valor sem sinal; o sinal vem do lançamento original.
+            Lancamento antes = tino.buscar(usuario, id).orElseThrow(
+                    () -> new IllegalArgumentException("esse lançamento já não existe"));
             long centavos = Dinheiro.paraCentavos(campo(evento, "valor"));
-            String caminho = campo(evento, "categoria");
-            String novaDescricao = campo(evento, "descricao");
-            LocalDate novaData = Entrada.data(campo(evento, "data"), LocalDate.now());
+            Pedido pedido = new Pedido(antes.centavos() > 0 ? centavos : -centavos,
+                    campo(evento, "categoria"), campo(evento, "descricao"),
+                    Entrada.data(campo(evento, "data"), tino.hoje()));
 
-            Tino.Registro r = tino.editar(usuario, id, centavos, caminho, novaDescricao, novaData);
+            Tino.Registro r = tino.editar(usuario, id, pedido);
             evento.getHook().editOriginalEmbeds(Visual.registro(r)).queue();
         } catch (IllegalArgumentException e) {
             evento.getHook().sendMessageEmbeds(Visual.aviso(e.getMessage())).setEphemeral(true).queue();
@@ -365,7 +377,7 @@ public class Bot extends ListenerAdapter {
     private Resposta registrar(SlashCommandInteractionEvent evento, String usuario, boolean ganho)
             throws SQLException {
         long valor = Dinheiro.paraCentavos(evento.getOption("valor").getAsString());
-        LocalDate data = Entrada.data(texto(evento, "data"), LocalDate.now());
+        LocalDate data = Entrada.data(texto(evento, "data"), tino.hoje());
         return resposta(usuario, tino.lancar(usuario, new Pedido(ganho ? valor : -valor,
                 texto(evento, "categoria"), texto(evento, "descricao"), data)));
     }
@@ -378,8 +390,7 @@ public class Bot extends ListenerAdapter {
     }
 
     private Resposta perguntar(String usuario, Evento.ForaDoNormal f) {
-        String chave = pendentes.guardar(usuario, f.pedido());
-        return new Resposta(Visual.foraDoNormal(f), Visual.confirmacao(usuario, chave));
+        return new Resposta(Visual.foraDoNormal(f), Visual.confirmacao(usuario, f.chave()));
     }
 
     private static Resposta registro(String usuario, Tino.Registro r) {
@@ -390,7 +401,7 @@ public class Bot extends ListenerAdapter {
     private List<Resposta> lote(String usuario, String texto) throws SQLException {
         List<Tino.Registro> registrados = new ArrayList<>();
         List<Resposta> perguntas = new ArrayList<>();
-        for (Evento e : tino.lancar(usuario, texto, LocalDate.now())) {
+        for (Evento e : tino.lancar(usuario, texto)) {
             switch (e) {
                 case Evento.Registrado(Tino.Registro r) -> registrados.add(r);
                 case Evento.ForaDoNormal f -> perguntas.add(perguntar(usuario, f));
@@ -406,24 +417,23 @@ public class Bot extends ListenerAdapter {
         return respostas;
     }
 
-    private MessageEmbed resumo(String usuario, String tipoPeriodo) throws SQLException {
-        LocalDate hoje = LocalDate.now();
-        Tino.Comparativo c = tino.resumo(usuario, tipoPeriodo, hoje);
+    private MessageEmbed resumo(String usuario, Escala escala) throws SQLException {
+        Tino.Comparativo c = tino.resumo(usuario, escala);
         return Visual.resumo(c.periodo(), c.atual(), c.anterior(), c.ritmo());
     }
 
     /** Uma página de lançamentos com os botões de navegação, quando fazem sentido. */
-    private Resposta pagina(String usuario, String tipoPeriodo, int offset) throws SQLException {
-        Tino.Pagina p = tino.pagina(usuario, tipoPeriodo, offset, LocalDate.now());
+    private Resposta pagina(String usuario, Escala escala, int offset) throws SQLException {
+        Tino.Pagina p = tino.pagina(usuario, escala, offset);
         MessageEmbed embed = Visual.lancamentos(p.periodo(), p.itens(), offset, p.temProxima());
         return offset == 0 && !p.temProxima()
                 ? Resposta.de(embed)
-                : new Resposta(embed, Visual.paginacao(usuario, tipoPeriodo, offset,
+                : new Resposta(embed, Visual.paginacao(usuario, escala.codigo(), offset,
                         p.temProxima(), Tino.LIMITE_PAGINA));
     }
 
     private void exportar(SlashCommandInteractionEvent evento, String usuario) throws SQLException {
-        Tino.Exportacao x = tino.exportar(usuario, periodo(evento), LocalDate.now());
+        Tino.Exportacao x = tino.exportar(usuario, periodo(evento));
         if (x.quantidade() == 0) {
             evento.getHook().sendMessageEmbeds(Visual.aviso("Nada para exportar neste período.")).queue();
             return;
@@ -487,7 +497,7 @@ public class Bot extends ListenerAdapter {
                         : Visual.aviso("Não achei o fixo `#%d`.".formatted(id));
             }
             case "lancar" -> {
-                int quantos = tino.lancarFixos(usuario, LocalDate.now());
+                int quantos = tino.lancarFixos(usuario);
                 yield quantos == 0
                         ? Visual.aviso("Nenhum fixo cadastrado. Use `/fixo adicionar`.")
                         : Visual.ok("%d fixo(s) lançados hoje. Confira em `/lancamentos`."
@@ -506,9 +516,9 @@ public class Bot extends ListenerAdapter {
         }
     }
 
-    private static String periodo(SlashCommandInteractionEvent evento) {
+    private static Escala periodo(SlashCommandInteractionEvent evento) {
         OptionMapping opcao = evento.getOption("periodo");
-        return opcao == null ? "mes" : opcao.getAsString();
+        return opcao == null ? Escala.MES : Escala.de(opcao.getAsString());
     }
 
     private static String texto(SlashCommandInteractionEvent evento, String nome) {

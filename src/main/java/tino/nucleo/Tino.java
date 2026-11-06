@@ -5,12 +5,17 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * O que o Tino sabe fazer, sem saber por qual canal foi pedido. Discord, site e
@@ -19,6 +24,9 @@ import java.util.Set;
  * <p>Recebe valores já interpretados — centavos com sinal, datas, nomes de
  * categoria. Interpretar texto digitado é papel de {@link Entrada}, chamada por
  * quem recebe texto livre.
+ *
+ * <p>O "agora" vem do {@link Clock}, no fuso do Tino: data futura, madrugada, mês corrente
+ * e expiração de pendente usam o mesmo relógio, e nenhum canal calcula a data.
  */
 public final class Tino {
 
@@ -27,13 +35,22 @@ public final class Tino {
     public static final int MAX_RAIZ = Financas.MAX_RAIZ;
     public static final int MAX_SUB = Financas.MAX_SUB;
 
+    // ponytail: um fuso para todo mundo. Fuso por pessoa entra com o site, numa coluna em conta.
+    static final ZoneId FUSO = ZoneId.of("America/Sao_Paulo");
+
+    static final Duration VALIDADE_PENDENTE = Duration.ofHours(24);
+
     // ponytail: uma conexão só, serializada pelos métodos synchronized. Um app pessoal
     // não tem concorrência que justifique pool; se tiver, trocar por HikariCP.
     private final Connection conexao;
+    private final Clock relogio;
 
-    /** Um lançamento gravado, com o contexto que ajuda a pegar erro de digitação. */
+    /**
+     * Um lançamento gravado, com o contexto que ajuda a pegar erro de digitação.
+     * {@code madrugada}: gravado entre 0h e 6h no fuso do Tino.
+     */
     public record Registro(long id, long centavos, String categoria, String descricao, LocalDate data,
-                           long acumulado, String parecida) {}
+                           long acumulado, String parecida, boolean madrugada) {}
 
     public record Pagina(Periodo periodo, List<Lancamento> itens, int offset,
                   boolean temProxima) {}
@@ -49,11 +66,16 @@ public final class Tino {
     public record Categorias(List<String> gastos, int raizGasto, int subGasto,
                       List<String> ganhos, int raizGanho, int subGanho) {}
 
-    Tino(Connection conexao) {
+    Tino(Connection conexao, Clock relogio) {
         this.conexao = conexao;
+        this.relogio = relogio;
     }
 
     public static Tino abrir(String caminho) throws SQLException {
+        return abrir(caminho, Clock.system(FUSO));
+    }
+
+    static Tino abrir(String caminho, Clock relogio) throws SQLException {
         Connection conexao = DriverManager.getConnection("jdbc:sqlite:" + caminho);
         try (Statement s = conexao.createStatement()) {
             s.execute("PRAGMA journal_mode=WAL");
@@ -62,7 +84,16 @@ public final class Tino {
         Financas.criarTabelas(conexao);
         Financas.normalizarCategorias(conexao);
         Financas.migrarParaContas(conexao);
-        return new Tino(conexao);
+        return new Tino(conexao, relogio);
+    }
+
+    ZoneId fuso() {
+        return relogio.getZone();
+    }
+
+    /** Para o canal interpretar uma data digitada ("07/08") com o mesmo dia do núcleo. */
+    public LocalDate hoje() {
+        return LocalDate.now(relogio);
     }
 
     /**
@@ -89,10 +120,13 @@ public final class Tino {
     // ------------------------------------------------------------ lançamentos
 
     /**
-     * Grava o pedido, a não ser que o valor fuja muito do normal da pessoa: aí devolve
-     * {@link Evento.ForaDoNormal} sem gravar nada, para o canal confirmar antes.
+     * Grava o pedido, a não ser que o valor fuja muito do normal da pessoa: aí guarda o
+     * pedido como pendente e devolve {@link Evento.ForaDoNormal} com a chave, para o canal
+     * perguntar antes.
      */
     public synchronized Evento lancar(String usuario, Pedido p) throws SQLException {
+        exigirPassado(p);
+        Financas.expirarPendentes(conexao, usuario, relogio.instant().minus(VALIDADE_PENDENTE));
         Pedido pedido = new Pedido(p.centavos(), nome(p), p.descricao(), p.data());
         // Categoria que ainda não existe não tem histórico: grava direto, e o registrar
         // ainda pode avisar de uma parecida antes de criá-la.
@@ -100,28 +134,80 @@ public final class Tino {
             return new Evento.Registrado(registrar(usuario, pedido));
         }
         long tipico = Financas.valorTipico(conexao, usuario, categoriaId(usuario, pedido), pedido.data());
-        return foraDoNormal(pedido.centavos(), tipico)
-                ? new Evento.ForaDoNormal(pedido, tipico)
-                : new Evento.Registrado(registrar(usuario, pedido));
+        if (!foraDoNormal(pedido.centavos(), tipico)) {
+            return new Evento.Registrado(registrar(usuario, pedido));
+        }
+        String chave = UUID.randomUUID().toString().replace("-", "");
+        Financas.guardarPendente(conexao, chave, usuario, pedido, relogio.instant());
+        return new Evento.ForaDoNormal(chave, pedido, tipico);
     }
 
-    /** Texto livre: "50 mercado, 30 uber, +3000 salário". Um evento por item. */
-    public synchronized List<Evento> lancar(String usuario, String texto, LocalDate hoje)
-            throws SQLException {
+    /** Grava o pendente que a pessoa confirmou. Vazio se já foi respondido, expirou ou é de outra. */
+    public synchronized Optional<Registro> confirmar(String usuario, String chave) throws SQLException {
+        return emTransacao(() -> {
+            Optional<Pedido> p = Financas.retirarPendente(conexao, usuario, chave,
+                    relogio.instant().minus(VALIDADE_PENDENTE));
+            return p.isEmpty() ? Optional.<Registro>empty() : Optional.of(registrar(usuario, p.get()));
+        });
+    }
+
+    /** A pessoa respondeu que o valor estava errado. False se já não havia o que descartar. */
+    public synchronized boolean descartar(String usuario, String chave) throws SQLException {
+        return Financas.descartarPendente(conexao, usuario, chave);
+    }
+
+    private void exigirPassado(Pedido p) {
+        if (p.data().isAfter(hoje())) {
+            throw new IllegalArgumentException("a data não pode ser futura");
+        }
+    }
+
+    private interface Trabalho<T> {
+        T fazer() throws SQLException;
+    }
+
+    /** Tudo ou nada: falha no meio desfaz o que já foi gravado. */
+    private <T> T emTransacao(Trabalho<T> trabalho) throws SQLException {
+        conexao.setAutoCommit(false);
+        try {
+            T resultado = trabalho.fazer();
+            conexao.commit();
+            return resultado;
+        } catch (SQLException | RuntimeException e) {
+            conexao.rollback();
+            throw e;
+        } finally {
+            conexao.setAutoCommit(true);
+        }
+    }
+
+    /**
+     * Texto livre: "50 mercado, 30 uber, +3000 salário". Um evento por item, e tudo ou
+     * nada: um item inválido desfaz os anteriores, e o erro diz qual foi.
+     */
+    public synchronized List<Evento> lancar(String usuario, String texto) throws SQLException {
         // As categorias existentes permitem reconhecer nomes com espaço sem exigir aspas.
         List<Entrada.Item> itens = Entrada.lista(texto,
                 Set.copyOf(Financas.caminhos(conexao, usuario, null, "", 200)));
-        // ponytail: sem transação; um item inválido no meio deixa os anteriores gravados.
-        List<Evento> eventos = new ArrayList<>();
-        for (Entrada.Item item : itens) {
-            eventos.add(lancar(usuario, new Pedido(item.ganho() ? item.centavos() : -item.centavos(),
-                    item.categoria(), item.descricao(), Entrada.data(item.data(), hoje))));
-        }
-        return eventos;
+        return emTransacao(() -> {
+            List<Evento> eventos = new ArrayList<>();
+            for (int i = 0; i < itens.size(); i++) {
+                Entrada.Item item = itens.get(i);
+                try {
+                    eventos.add(lancar(usuario, new Pedido(
+                            item.ganho() ? item.centavos() : -item.centavos(),
+                            item.categoria(), item.descricao(), Entrada.data(item.data(), hoje()))));
+                } catch (IllegalArgumentException e) {
+                    throw itens.size() == 1 ? e
+                            : new IllegalArgumentException("No %dº item: %s".formatted(i + 1, e.getMessage()), e);
+                }
+            }
+            return eventos;
+        });
     }
 
-    /** Grava sem perguntar: depois de a pessoa confirmar, ou quando o canal já decidiu. */
-    public synchronized Registro registrar(String usuario, Pedido p) throws SQLException {
+    /** Grava sem perguntar. Fora do núcleo, só por {@link #lancar} ou {@link #confirmar}. */
+    Registro registrar(String usuario, Pedido p) throws SQLException {
         String nome = nome(p);
         String tipo = tipo(p);
 
@@ -133,14 +219,19 @@ public final class Tino {
         long categoriaId = categoriaId(usuario, p);
         long id = Financas.registrar(conexao, usuario, p.centavos(), categoriaId, p.descricao(), p.data());
         long acumulado = Financas.totalDaCategoria(conexao, usuario, categoriaId,
-                Periodo.de("mes", p.data()), p.centavos() > 0);
+                Periodo.de(Escala.MES, p.data()), p.centavos() > 0);
 
-        return new Registro(id, p.centavos(), nome, p.descricao(), p.data(), acumulado, parecida);
+        return new Registro(id, p.centavos(), nome, p.descricao(), p.data(), acumulado, parecida,
+                madrugada());
     }
 
-    public synchronized Registro registrar(String usuario, long centavos, String categoria,
-                                           String descricao, LocalDate data) throws SQLException {
+    Registro registrar(String usuario, long centavos, String categoria, String descricao, LocalDate data)
+            throws SQLException {
         return registrar(usuario, new Pedido(centavos, categoria, descricao, data));
+    }
+
+    private boolean madrugada() {
+        return LocalTime.now(relogio).getHour() < 6;
     }
 
     /**
@@ -168,18 +259,22 @@ public final class Tino {
         return Financas.categoriaId(conexao, usuario, nome(p), tipo(p));
     }
 
-    /** Mantém o sinal original: edição não transforma gasto em ganho. */
-    public synchronized Registro editar(String usuario, long id, long centavos, String categoria,
-                                 String descricao, LocalDate data) throws SQLException {
+    /** Edição não transforma gasto em ganho: o pedido precisa ter o sinal do original. */
+    public synchronized Registro editar(String usuario, long id, Pedido p) throws SQLException {
         Lancamento antes = Financas.buscar(conexao, usuario, id).orElseThrow(
                 () -> new IllegalArgumentException("esse lançamento já não existe"));
-        boolean ganho = antes.centavos() > 0;
-        long comSinal = ganho ? centavos : -centavos;
-
-        long categoriaId = Financas.categoriaId(conexao, usuario, categoria,
-                ganho ? Financas.GANHO : Financas.GASTO);
-        Financas.atualizar(conexao, usuario, id, comSinal, categoriaId, descricao, data);
-        return new Registro(id, comSinal, categoria, descricao, data, 0, null);
+        if ((antes.centavos() > 0) != (p.centavos() > 0)) {
+            throw new IllegalArgumentException("a edição não troca gasto por ganho");
+        }
+        exigirPassado(p);
+        return emTransacao(() -> {
+            // A categoria nova só fica se o lançamento ainda existir.
+            if (!Financas.atualizar(conexao, usuario, id, p.centavos(), categoriaId(usuario, p),
+                    p.descricao(), p.data())) {
+                throw new IllegalArgumentException("esse lançamento já não existe");
+            }
+            return new Registro(id, p.centavos(), nome(p), p.descricao(), p.data(), 0, null, false);
+        });
     }
 
     public synchronized Optional<Lancamento> buscar(String usuario, long id) throws SQLException {
@@ -192,9 +287,9 @@ public final class Tino {
 
     // -------------------------------------------------------------- consultas
 
-    public synchronized Comparativo resumo(String usuario, String tipoPeriodo, LocalDate hoje)
-            throws SQLException {
-        Periodo periodo = Periodo.de(tipoPeriodo, hoje);
+    public synchronized Comparativo resumo(String usuario, Escala escala) throws SQLException {
+        LocalDate hoje = hoje();
+        Periodo periodo = Periodo.de(escala, hoje);
         Resumo atual = Financas.resumo(conexao, usuario, periodo);
         return new Comparativo(periodo, atual,
                 Financas.resumo(conexao, usuario, periodo.anterior()),
@@ -218,9 +313,8 @@ public final class Tino {
         return new Ritmo(media, media * totais);
     }
 
-    public synchronized Pagina pagina(String usuario, String tipoPeriodo, int offset, LocalDate hoje)
-            throws SQLException {
-        Periodo periodo = Periodo.de(tipoPeriodo, hoje);
+    public synchronized Pagina pagina(String usuario, Escala escala, int offset) throws SQLException {
+        Periodo periodo = Periodo.de(escala, hoje());
         // Busca um a mais do que cabe: se vier, existe página seguinte.
         List<Lancamento> lista =
                 Financas.lancamentos(conexao, usuario, periodo, LIMITE_PAGINA + 1, offset);
@@ -229,9 +323,8 @@ public final class Tino {
                 offset, temProxima);
     }
 
-    public synchronized Exportacao exportar(String usuario, String tipoPeriodo, LocalDate hoje)
-            throws SQLException {
-        Periodo periodo = Periodo.de(tipoPeriodo, hoje);
+    public synchronized Exportacao exportar(String usuario, Escala escala) throws SQLException {
+        Periodo periodo = Periodo.de(escala, hoje());
         List<Lancamento> lista =
                 Financas.lancamentos(conexao, usuario, periodo, Integer.MAX_VALUE, 0);
         return new Exportacao(periodo, lista.size(), csv(lista));
@@ -305,7 +398,7 @@ public final class Tino {
         return Financas.removerRecorrente(conexao, usuario, id);
     }
 
-    public synchronized int lancarFixos(String usuario, LocalDate data) throws SQLException {
-        return Financas.lancarRecorrentes(conexao, usuario, data);
+    public synchronized int lancarFixos(String usuario) throws SQLException {
+        return Financas.lancarRecorrentes(conexao, usuario, hoje());
     }
 }

@@ -31,9 +31,9 @@ lançamento, dos avisos e das boas-vindas; resumo, listas e confirmações simpl
 seguem sem ele, para não poluir. Ouvindo, pensando e escrevendo ficam para os
 canais que mostram a espera (voz, site).
 
-Hoje só o alerta nasce de um `Evento` do núcleo. Sucesso, dormindo (pelo relógio
-do servidor) e erro ainda são decididos no canal Discord; levá-los para o núcleo
-é o próximo passo, antes de o site precisar da mesma regra.
+O núcleo diz o fato e o canal escolhe a imagem: o alerta nasce do `Evento.ForaDoNormal`,
+sucesso e dormindo do `Registro` (que traz `madrugada`, pelo relógio do núcleo), e erro da
+`IllegalArgumentException`.
 
 ## Regra das falas
 

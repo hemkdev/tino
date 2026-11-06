@@ -14,12 +14,14 @@ esconde o que cada consulta faz. Os commits dessa fase continuam no histórico.
 
 ```
 tino/nucleo/    Tino (casos de uso), Financas (SQL), Entrada, Dinheiro e os records do domínio
-tino/discord/   Bot (eventos do JDA), Visual (embeds e botões), Estado, Pendentes
+tino/discord/   Bot (eventos do JDA), Visual (embeds e botões), Estado
 ```
 
 Canal novo (site, Telegram, MCP) fala só com a classe `Tino`. `Financas` é package-private, então
 a fronteira não depende de disciplina: chamar SQL de fora de `tino.nucleo` não compila. Cálculo
-(projeção do mês, CSV, interpretação de data) mora no núcleo; o canal só formata.
+(projeção do mês, CSV, interpretação de data) e regra (fora do normal, pendentes, madrugada)
+moram no núcleo; o canal só traduz a entrada e formata a saída. O teste: se um segundo canal
+precisaria copiar, é núcleo.
 
 ## 3. Um processo, uma conexão, um lock
 
@@ -36,19 +38,23 @@ identidade à mesma conta. A migração dos ids antigos do Discord roda no boot 
 ## 5. Evento selado em vez de flag
 
 `Tino.lancar` devolve um `Evento`: `Registrado` ou `ForaDoNormal`. Quando o valor passa de 5× a
-média recente da categoria, nada é gravado e o canal pergunta antes; confirmado, chama
-`Tino.registrar`. Por ser `sealed`, o `switch` de cada canal precisa cobrir todos os casos para
+média recente da categoria (90 dias até a data do lançamento), nada é gravado e o canal pergunta
+antes; a resposta volta por `Tino.confirmar` ou `Tino.descartar`. Não há outro jeito de gravar:
+`registrar` é package-private. Por ser `sealed`, o `switch` de cada canal precisa cobrir todos os casos para
 compilar, então um evento novo não passa despercebido em nenhum canal. Erro de digitação continua
 como `IllegalArgumentException`, que é o idioma do Java para entrada inválida.
 
-O pedido à espera de confirmação fica em memória no canal Discord (`Pendentes`), com chave
-aleatória e retirada só pela dona. Reiniciar o bot perde os pendentes, e o botão responde que
-expirou.
+O pedido à espera de confirmação fica na tabela `pendente` ([banco.md](banco.md)), com chave
+aleatória, retirada só pela dona e validade de 24 h. Sobrevive a reinício, e qualquer canal
+responde por ele com a chave que recebeu no `ForaDoNormal`.
 
-## 6. A data entra por parâmetro
+## 6. O relógio é do núcleo
 
-Métodos que dependem do dia recebem `LocalDate hoje` em vez de chamar `LocalDate.now()`. Mesmo
-tamanho de código, e qualquer regra de período fica testável de forma determinística.
+`Tino` recebe um `java.time.Clock` no fuso America/Sao_Paulo (`Clock.fixed` nos testes). Data
+futura, madrugada, mês corrente e expiração de pendente usam o mesmo "agora", e nenhum canal
+calcula a data: quem precisa interpretar uma data digitada usa `tino.hoje()`. As classes puras
+(`Entrada`, `Periodo`, `Financas`) continuam recebendo `LocalDate hoje` por parâmetro. Fuso por
+pessoa entra com o site, que sabe o fuso do navegador; o Discord não sabe.
 
 ## 7. Sem interface de repositório
 

@@ -51,7 +51,7 @@ class FinancasTest {
     }
 
     private Resumo resumoDoMes(String usuario) throws SQLException {
-        return Financas.resumo(c, usuario, Periodo.de("mes", HOJE));
+        return Financas.resumo(c, usuario, Periodo.de(Escala.MES, HOJE));
     }
 
     // ---------------------------------------------------------------- resumo
@@ -285,7 +285,7 @@ class FinancasTest {
         gasto(EU, "20", "Transporte", HOJE);
 
         List<Lancamento> lista =
-                Financas.lancamentos(c, EU, Periodo.de("mes", HOJE), 20, 0);
+                Financas.lancamentos(c, EU, Periodo.de(Escala.MES, HOJE), 20, 0);
 
         assertEquals(2, lista.size());
         assertEquals(HOJE, lista.get(0).data());
@@ -298,7 +298,7 @@ class FinancasTest {
         gasto(EU, "10", "Alimentação > Mercado", HOJE);
 
         assertEquals("Alimentação > Mercado",
-                Financas.lancamentos(c, EU, Periodo.de("mes", HOJE), 20, 0).get(0).categoria());
+                Financas.lancamentos(c, EU, Periodo.de(Escala.MES, HOJE), 20, 0).get(0).categoria());
     }
 
     @Test
@@ -307,7 +307,7 @@ class FinancasTest {
             gasto(EU, "10", "Alimentação", HOJE);
         }
 
-        assertEquals(3, Financas.lancamentos(c, EU, Periodo.de("mes", HOJE), 3, 0).size());
+        assertEquals(3, Financas.lancamentos(c, EU, Periodo.de(Escala.MES, HOJE), 3, 0).size());
     }
 
     @Test
@@ -316,7 +316,7 @@ class FinancasTest {
             Financas.registrar(c, EU, -(i + 1) * 1_000L,
                     Financas.categoriaId(c, EU, "Lazer", GASTO), null, HOJE);
         }
-        Periodo mes = Periodo.de("mes", HOJE);
+        Periodo mes = Periodo.de(Escala.MES, HOJE);
 
         List<Long> pagina1 = Financas.lancamentos(c, EU, mes, 2, 0)
                 .stream().map(Lancamento::id).toList();
@@ -332,14 +332,14 @@ class FinancasTest {
     void offsetAlemDoFimVemVazio() throws SQLException {
         gasto(EU, "10", "Lazer", HOJE);
 
-        assertTrue(Financas.lancamentos(c, EU, Periodo.de("mes", HOJE), 20, 50).isEmpty());
+        assertTrue(Financas.lancamentos(c, EU, Periodo.de(Escala.MES, HOJE), 20, 50).isEmpty());
     }
 
     @Test
     void listaNaoMostraLancamentoDeOutroUsuario() throws SQLException {
         gasto(OUTRO, "10", "Alimentação", HOJE);
 
-        assertTrue(Financas.lancamentos(c, EU, Periodo.de("mes", HOJE), 20, 0).isEmpty());
+        assertTrue(Financas.lancamentos(c, EU, Periodo.de(Escala.MES, HOJE), 20, 0).isEmpty());
     }
 
     // -------------------------------------------------------------- remoção
@@ -365,7 +365,7 @@ class FinancasTest {
         long id = Financas.categoriaId(c, EU, "Alimentação > Mercado", GASTO);
 
         assertEquals(14_000, Financas.totalDaCategoria(
-                c, EU, id, Periodo.de("mes", HOJE), false));
+                c, EU, id, Periodo.de(Escala.MES, HOJE), false));
     }
 
     @Test
@@ -485,7 +485,7 @@ class FinancasTest {
 
     @Test
     void mesVaiDoPrimeiroAoUltimoDia() {
-        Periodo p = Periodo.de("mes", HOJE);
+        Periodo p = Periodo.de(Escala.MES, HOJE);
 
         assertEquals(LocalDate.of(2026, 8, 1), p.inicio());
         assertEquals(LocalDate.of(2026, 8, 31), p.fim());
@@ -493,7 +493,7 @@ class FinancasTest {
 
     @Test
     void semanaVaiDeSegundaADomingo() {
-        Periodo p = Periodo.de("semana", HOJE);
+        Periodo p = Periodo.de(Escala.SEMANA, HOJE);
 
         assertEquals(LocalDate.of(2026, 8, 3), p.inicio());
         assertEquals(LocalDate.of(2026, 8, 9), p.fim());
@@ -501,7 +501,7 @@ class FinancasTest {
 
     @Test
     void mesAnteriorRespeitaTamanhoDoMes() {
-        Periodo p = Periodo.de("mes", LocalDate.of(2026, 3, 15)).anterior();
+        Periodo p = Periodo.de(Escala.MES, LocalDate.of(2026, 3, 15)).anterior();
 
         assertEquals(LocalDate.of(2026, 2, 1), p.inicio());
         assertEquals(LocalDate.of(2026, 2, 28), p.fim());
@@ -509,7 +509,7 @@ class FinancasTest {
 
     @Test
     void anoAnteriorAtravessaAVirada() {
-        Periodo p = Periodo.de("ano", HOJE).anterior();
+        Periodo p = Periodo.de(Escala.ANO, HOJE).anterior();
 
         assertEquals(LocalDate.of(2025, 1, 1), p.inicio());
         assertEquals(LocalDate.of(2025, 12, 31), p.fim());

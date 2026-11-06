@@ -16,7 +16,8 @@ mvn package && java -jar target/tino.jar          # precisa de DISCORD_TOKEN
 
 Canal novo chama `Tino`, nunca `Financas`. `Tino` recebe valores já interpretados (centavos com
 sinal, `LocalDate`), exceto `Tino.lancar`, que recebe o texto livre. Canal que precise interpretar
-um campo solto usa `Entrada` ou `Dinheiro`. Método que depende do dia recebe `LocalDate hoje`.
+um campo solto usa `Entrada` ou `Dinheiro`. O relógio é do `Tino` (`Clock`); classe pura que
+depende do dia recebe `LocalDate hoje`. Regra que um segundo canal precisaria copiar é núcleo.
 
 O porquê de cada escolha está em `docs/decisoes.md`; o esquema e as regras do banco, em
 `docs/banco.md`; os estados e as falas do personagem, em `docs/personagem.md`. `local/` fica fora
