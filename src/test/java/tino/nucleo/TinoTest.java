@@ -412,6 +412,48 @@ class TinoTest {
     }
 
     @Test
+    void editarComDescricaoEmBrancoGravaSemDescricao() throws SQLException {
+        long id = tino.registrar(EU, -5_000, "Lazer", "cinema", HOJE).id();
+
+        tino.editar(EU, id, new Pedido(-5_000, "Lazer", "  ", HOJE));
+
+        assertNull(tino.buscar(EU, id).orElseThrow().descricao());
+    }
+
+    @Test
+    void fixoComDescricaoEmBrancoGravaSemDescricao() throws SQLException {
+        tino.adicionarFixo(EU, -100_000, "Moradia", " ");
+
+        assertNull(tino.fixos(EU).getFirst().descricao());
+    }
+
+    @Test
+    void fixoPassaPelasMesmasRegrasDoPedido() {
+        assertThrows(IllegalArgumentException.class, () -> tino.adicionarFixo(EU, 0, "Moradia", null));
+        assertThrows(IllegalArgumentException.class,
+                () -> tino.adicionarFixo(EU, -100, "Moradia", "x".repeat(201)));
+    }
+
+    @Test
+    void fixoSemCategoriaVaiParaOutros() throws SQLException {
+        tino.adicionarFixo(EU, -100_000, " ", null);
+
+        assertEquals(Tino.PADRAO, tino.fixos(EU).getFirst().categoria());
+    }
+
+    @Test
+    void pedidoTrataDescricaoEmBrancoComoAusente() {
+        assertNull(new Pedido(-100, "Mercado", "", HOJE).descricao());
+        assertNull(new Pedido(-100, "Mercado", "   ", HOJE).descricao());
+        assertEquals("pão", new Pedido(-100, "Mercado", "pão", HOJE).descricao());
+    }
+
+    @Test
+    void descricaoNoLimiteDe200EhAceita() {
+        assertEquals(200, new Pedido(-100, "Mercado", "x".repeat(200), HOJE).descricao().length());
+    }
+
+    @Test
     void lancarRecusaDataFutura() throws SQLException {
         assertThrows(IllegalArgumentException.class,
                 () -> tino.lancar(EU, new Pedido(-100, "Mercado", null, HOJE.plusDays(1))));
