@@ -435,6 +435,25 @@ class TinoTest {
     }
 
     @Test
+    void fixoSemCategoriaVaiParaOutros() throws SQLException {
+        tino.adicionarFixo(EU, -100_000, " ", null);
+
+        assertEquals(Tino.PADRAO, tino.fixos(EU).getFirst().categoria());
+    }
+
+    @Test
+    void pedidoTrataDescricaoEmBrancoComoAusente() {
+        assertNull(new Pedido(-100, "Mercado", "", HOJE).descricao());
+        assertNull(new Pedido(-100, "Mercado", "   ", HOJE).descricao());
+        assertEquals("pão", new Pedido(-100, "Mercado", "pão", HOJE).descricao());
+    }
+
+    @Test
+    void descricaoNoLimiteDe200EhAceita() {
+        assertEquals(200, new Pedido(-100, "Mercado", "x".repeat(200), HOJE).descricao().length());
+    }
+
+    @Test
     void lancarRecusaDataFutura() throws SQLException {
         assertThrows(IllegalArgumentException.class,
                 () -> tino.lancar(EU, new Pedido(-100, "Mercado", null, HOJE.plusDays(1))));
