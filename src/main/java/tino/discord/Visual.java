@@ -17,6 +17,8 @@ import net.dv8tion.jda.api.interactions.components.text.TextInput;
 import net.dv8tion.jda.api.interactions.components.text.TextInputStyle;
 import net.dv8tion.jda.api.interactions.modals.Modal;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -125,6 +127,8 @@ final class Visual {
                 .setDescription("%s em %s? Seu normal é %s.".formatted(
                         redondo(Math.abs(p.centavos())), p.categoria(),
                         redondo(f.tipico()).substring("R$ ".length())))
+                .setFooter("normal = média dos seus lançamentos nessa categoria nos últimos %d dias · responda em até %d h"
+                        .formatted(Tino.DIAS_DO_NORMAL, Tino.HORAS_PARA_RESPONDER))
                 .build();
     }
 
@@ -404,7 +408,7 @@ final class Visual {
                         "🍽️ Alimentação · 🚗 Transporte · 🏠 Moradia · 💊 Saúde\n"
                                 + "🎮 Lazer · 📚 Educação · 📦 Outros\n"
                                 + "💰 Salário · 💼 Freelance · 📈 Investimentos", false)
-                .setFooter("digite ajuda quando quiser ver tudo que eu faço")
+                .setFooter("digite ajuda ou use /ajuda quando quiser ver tudo que eu faço")
                 .build();
     }
 
@@ -441,6 +445,11 @@ final class Visual {
                         "`/categoria listar` · `criar` · `renomear` · `excluir`\n"
                                 + "Subcategoria: escreva `Alimentação > Mercado`\n"
                                 + "`/fixo` — aluguel e assinaturas, lançados de uma vez", false)
+                .addField("Quando eu pergunto antes",
+                        ("Se um valor passa de %d× a sua média dos últimos %d dias na categoria, "
+                                + "pergunto antes de anotar. Quase sempre é `5000` digitado no lugar "
+                                + "de `50,00`. O aviso vale por %d h.").formatted(
+                                Tino.VEZES_O_NORMAL, Tino.DIAS_DO_NORMAL, Tino.HORAS_PARA_RESPONDER), false)
                 .addField("Corrigir",
                         "Botão **Desfazer** e **Editar** logo abaixo de cada registro\n"
                                 + "`/remover 12` apaga pelo id", false)
@@ -464,6 +473,32 @@ final class Visual {
     /** As mensagens do núcleo vêm em minúscula, para compor frase; aqui viram frase solta. */
     private static String maiuscula(String s) {
         return s == null || s.isEmpty() ? "" : Character.toUpperCase(s.charAt(0)) + s.substring(1);
+    }
+
+    /** Na DM o Tino nunca fica calado: o que ele não entende vira instrução. */
+    static MessageEmbed naoEntendi() {
+        return new EmbedBuilder().setColor(AMARELO).setThumbnail(Estado.ERRO.url())
+                .setDescription("""
+                        Não entendi. Me manda assim: `50 mercado` ou `+3000 salário`.
+                        Pra ver tudo que eu sei fazer: `/ajuda`""")
+                .build();
+    }
+
+    static MessageEmbed erroInterno(String codigo) {
+        return erro("Algo deu errado do meu lado. Tenta de novo daqui a pouco.\n"
+                + "Se continuar, [me avisa por aqui](%s) com o código `%s`.".formatted(linkDoAviso(codigo), codigo));
+    }
+
+    /** Issue já preenchida. É pública, então o corpo pede para não colar valor nem dado pessoal. */
+    private static String linkDoAviso(String codigo) {
+        String corpo = """
+                Código: %s
+                O que eu estava fazendo:
+
+                (não cole valores, descrições nem dados pessoais: este aviso é público)""".formatted(codigo);
+        return "https://github.com/hemkdev/Tino/issues/new?title=%s&body=%s".formatted(
+                URLEncoder.encode("Erro " + codigo, StandardCharsets.UTF_8),
+                URLEncoder.encode(corpo, StandardCharsets.UTF_8));
     }
 
     static MessageEmbed erro(String mensagem) {

@@ -12,7 +12,7 @@ mvn package && java -jar target/tino.jar          # precisa de DISCORD_TOKEN
 
 - **`tino.nucleo`, sem JDA:** `Tino` (casos de uso, dono da conexão e do lock), `Financas` (SQL,
   package-private), `Entrada` (texto livre), `Dinheiro`, `Evento` e os records do domínio.
-- **`tino.discord`:** `Bot` (eventos do JDA), `Visual` (embeds e botões), `Estado`, `Pendentes`.
+- **`tino.discord`:** `Bot` (eventos do JDA), `Visual` (embeds e botões), `Estado`.
 
 Canal novo chama `Tino`, nunca `Financas`. `Tino` recebe valores já interpretados (centavos com
 sinal, `LocalDate`), exceto `Tino.lancar`, que recebe o texto livre. Canal que precise interpretar

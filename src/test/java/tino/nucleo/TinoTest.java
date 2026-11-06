@@ -517,6 +517,7 @@ class TinoTest {
                 () -> tino.lancar(EU, "50 mercado, 30 uber 2099-12-31, 20 pão"));
 
         assertTrue(e.getMessage().contains("2º item"), e.getMessage());
+        assertTrue(e.getMessage().contains("Nada foi anotado"), e.getMessage());
         assertEquals(0, gravados());
     }
 
@@ -527,5 +528,28 @@ class TinoTest {
         historico("Mercado", -5_000, 3);
 
         registrado(tino.lancar(EU, new Pedido(-500_000, "Mercado", null, HOJE.minusDays(10))));
+    }
+
+    // ------------------------------------------------- erro que diz como acertar
+
+    @Test
+    void errosDeEntradaDizemComoAcertar() {
+        String longa = assertThrows(IllegalArgumentException.class,
+                () -> new Pedido(-100, "Mercado", "x".repeat(201), HOJE)).getMessage();
+        String futura = assertThrows(IllegalArgumentException.class,
+                () -> tino.lancar(EU, new Pedido(-100, "Mercado", null, HOJE.plusDays(1)))).getMessage();
+        String categoria = assertThrows(IllegalArgumentException.class,
+                () -> tino.criarCategoria(EU, "A > B > C", Tipo.GASTO)).getMessage();
+
+        assertTrue(longa.contains("200"), longa);
+        assertTrue(futura.contains("hoje"), futura);
+        assertTrue(categoria.contains("`Categoria > Subcategoria`"), categoria);
+    }
+
+    @Test
+    void constantesDoAlertaBatemComARegra() {
+        assertEquals(5, Tino.VEZES_O_NORMAL);
+        assertEquals(90, Tino.DIAS_DO_NORMAL);
+        assertEquals(24, Tino.HORAS_PARA_RESPONDER);
     }
 }

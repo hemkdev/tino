@@ -227,7 +227,8 @@ public final class Entrada {
         if (texto == null || texto.isBlank() || texto.length() > 120) {
             return null;
         }
-        String limpo = semAcento(texto.toLowerCase(BR)).replaceAll("[?!.,]", " ").trim();
+        // "/" entra na limpeza: comando digitado sem escolher na lista chega como texto ("/help").
+        String limpo = semAcento(texto.toLowerCase(BR)).replaceAll("[?!.,/]", " ").trim();
 
         String tipo = null;
         int melhor = -1;
@@ -293,7 +294,7 @@ public final class Entrada {
             data = data.minusYears(1);
         }
         if (data.isAfter(hoje)) {
-            throw new IllegalArgumentException("a data não pode ser futura");
+            throw new IllegalArgumentException("a data não pode ser futura: use hoje ou um dia que já passou");
         }
         return data;
     }

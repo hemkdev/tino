@@ -65,4 +65,12 @@ class DinheiroTest {
         assertEquals("R$ 1.234,56", Dinheiro.formatar(123456));
         assertEquals("R$ 0,50", Dinheiro.formatar(50));
     }
+
+    @Test
+    void errosDeEntradaDizemComoAcertar() {
+        String e = org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> Dinheiro.paraCentavos("abc")).getMessage();
+
+        org.junit.jupiter.api.Assertions.assertTrue(e.contains("`1.234,56`"), e);
+    }
 }

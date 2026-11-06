@@ -229,6 +229,17 @@ class VisualTest {
 
     // ------------------------------------------------------------ personagem
 
+    @Test
+    void naoEntendiMostraComoFazer() {
+        MessageEmbed e = Visual.naoEntendi();
+
+        assertTrue(broto(e).endsWith("/erro.gif"));
+        assertTrue(e.getDescription().contains("Não entendi"), e.getDescription());
+        assertTrue(e.getDescription().contains("`50 mercado`"));
+        assertTrue(e.getDescription().contains("`+3000 salário`"));
+        assertTrue(e.getDescription().contains("/ajuda"));
+    }
+
     private static String broto(MessageEmbed e) {
         return e.getThumbnail().getUrl();
     }
@@ -264,5 +275,37 @@ class VisualTest {
     @Test
     void boasVindasMostraOTinoEsperando() {
         assertTrue(broto(Visual.boasVindas()).endsWith("/ocioso.gif"));
+    }
+
+    @Test
+    void erroInternoTrazCodigo() {
+        assertTrue(Visual.erroInterno("K3F9").getDescription().contains("`K3F9`"));
+    }
+
+    @Test
+    void erroInternoLevaAoAvisoJaPreenchido() {
+        String d = Visual.erroInterno("K3F9").getDescription();
+
+        assertTrue(d.contains("(https://github.com/hemkdev/Tino/issues/new?title=Erro+K3F9&body="), d);
+    }
+
+    @Test
+    void alertaExplicaONumeroEOPrazo() {
+        String rodape = Visual.foraDoNormal(new Evento.ForaDoNormal("k",
+                new Pedido(-480_000, "Moradia", null, HOJE), 180_000)).getFooter().getText();
+
+        assertTrue(rodape.contains("90 dias"), rodape);
+        assertTrue(rodape.contains("24 h"), rodape);
+    }
+
+    @Test
+    void ajudaExplicaQuandoPerguntaAntes() {
+        assertTrue(Visual.ajuda().getFields().stream()
+                .anyMatch(f -> f.getName().equals("Quando eu pergunto antes") && f.getValue().contains("24 h")));
+    }
+
+    @Test
+    void boasVindasApontamParaAjuda() {
+        assertTrue(Visual.boasVindas().getFooter().getText().contains("/ajuda"));
     }
 }
