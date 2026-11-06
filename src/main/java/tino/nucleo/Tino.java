@@ -386,12 +386,11 @@ public final class Tino {
         return Financas.recorrentes(conexao, usuario);
     }
 
-    /** Valor negativo é gasto, positivo é ganho. */
+    /** Valor negativo é gasto, positivo é ganho. Valida como um lançamento de hoje. */
     public synchronized void adicionarFixo(String usuario, long centavos, String categoria,
                                     String descricao) throws SQLException {
-        long categoriaId = Financas.categoriaId(conexao, usuario, categoria,
-                centavos > 0 ? Financas.GANHO : Financas.GASTO);
-        Financas.adicionarRecorrente(conexao, usuario, centavos, categoriaId, descricao);
+        Pedido p = new Pedido(centavos, categoria, descricao, hoje());
+        Financas.adicionarRecorrente(conexao, usuario, p.centavos(), categoriaId(usuario, p), p.descricao());
     }
 
     public synchronized boolean removerFixo(String usuario, long id) throws SQLException {

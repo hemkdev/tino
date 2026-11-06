@@ -421,6 +421,20 @@ class TinoTest {
     }
 
     @Test
+    void fixoComDescricaoEmBrancoGravaSemDescricao() throws SQLException {
+        tino.adicionarFixo(EU, -100_000, "Moradia", " ");
+
+        assertNull(tino.fixos(EU).getFirst().descricao());
+    }
+
+    @Test
+    void fixoPassaPelasMesmasRegrasDoPedido() {
+        assertThrows(IllegalArgumentException.class, () -> tino.adicionarFixo(EU, 0, "Moradia", null));
+        assertThrows(IllegalArgumentException.class,
+                () -> tino.adicionarFixo(EU, -100, "Moradia", "x".repeat(201)));
+    }
+
+    @Test
     void lancarRecusaDataFutura() throws SQLException {
         assertThrows(IllegalArgumentException.class,
                 () -> tino.lancar(EU, new Pedido(-100, "Mercado", null, HOJE.plusDays(1))));
