@@ -13,7 +13,7 @@ public record Pedido(long centavos, String categoria, String descricao, LocalDat
             throw new IllegalArgumentException("falta a data");
         }
         if (descricao != null && descricao.length() > 200) {
-            throw new IllegalArgumentException("descrição muito longa");
+            throw new IllegalArgumentException("descrição muito longa: são até 200 caracteres");
         }
     }
 }

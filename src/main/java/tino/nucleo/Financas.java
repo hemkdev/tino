@@ -21,6 +21,7 @@ final class Financas {
 
     static final int MAX_RAIZ = 10;
     static final int MAX_SUB = 20;
+    static final int DIAS_DO_NORMAL = 90;
 
     private static final List<String> PADRAO_GASTO = List.of(
             "Alimentação", "Transporte", "Moradia", "Saúde", "Lazer", "Educação", "Outros");
@@ -232,19 +233,19 @@ final class Financas {
 
     private static String[] separar(String caminho) {
         if (caminho == null || caminho.isBlank()) {
-            throw new IllegalArgumentException("informe uma categoria");
+            throw new IllegalArgumentException("falta a categoria: escreva por exemplo `Mercado`");
         }
         String[] partes = caminho.split(">");
         if (partes.length > 2) {
-            throw new IllegalArgumentException("são no máximo dois níveis: `Categoria > Subcategoria`");
+            throw new IllegalArgumentException("são no máximo dois níveis: use `Categoria > Subcategoria`");
         }
         for (int i = 0; i < partes.length; i++) {
             partes[i] = Entrada.capitalizar(partes[i]);
             if (partes[i].isEmpty()) {
-                throw new IllegalArgumentException("categoria inválida: " + caminho);
+                throw new IllegalArgumentException("categoria inválida `%s`: use `Categoria` ou `Categoria > Subcategoria`".formatted(caminho));
             }
             if (partes[i].length() > 30) {
-                throw new IllegalArgumentException("nome muito longo: " + partes[i]);
+                throw new IllegalArgumentException("nome muito longo `%s`: são até 30 caracteres".formatted(partes[i]));
             }
         }
         return partes;
@@ -463,7 +464,7 @@ final class Financas {
     static long registrar(Connection c, String usuario, long centavos, long categoriaId,
                           String descricao, LocalDate data) throws SQLException {
         if (descricao != null && descricao.length() > 200) {
-            throw new IllegalArgumentException("descrição muito longa");
+            throw new IllegalArgumentException("descrição muito longa: são até 200 caracteres");
         }
         try (PreparedStatement ps = c.prepareStatement("""
                 INSERT INTO lancamento (usuario, valor_centavos, categoria_id, descricao, data)
@@ -503,7 +504,7 @@ final class Financas {
     static boolean atualizar(Connection c, String usuario, long id, long centavos,
                              long categoriaId, String descricao, LocalDate data) throws SQLException {
         if (descricao != null && descricao.length() > 200) {
-            throw new IllegalArgumentException("descrição muito longa");
+            throw new IllegalArgumentException("descrição muito longa: são até 200 caracteres");
         }
         try (PreparedStatement ps = c.prepareStatement("""
                 UPDATE lancamento
@@ -706,7 +707,7 @@ final class Financas {
                    AND COALESCE(c.pai_id, c.id) =
                        (SELECT COALESCE(pai_id, id) FROM categoria WHERE id = ?)""")) {
             ps.setString(1, usuario);
-            ps.setString(2, hoje.minusDays(90).toString());
+            ps.setString(2, hoje.minusDays(DIAS_DO_NORMAL).toString());
             ps.setString(3, hoje.toString());
             ps.setLong(4, categoriaId);
             try (ResultSet rs = ps.executeQuery()) {

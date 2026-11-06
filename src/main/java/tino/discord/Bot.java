@@ -175,7 +175,10 @@ public class Bot extends ListenerAdapter {
                 return;
             }
 
-            tino.preparar(usuario);
+            if (tino.preparar(usuario)) {
+                // Quem começa pela barra também precisa saber como o Tino funciona.
+                evento.getHook().sendMessageEmbeds(Visual.boasVindas()).queue();
+            }
             List<Resposta> respostas = switch (evento.getName()) {
                 case "gasto" -> List.of(registrar(evento, usuario, false));
                 case "ganho" -> List.of(registrar(evento, usuario, true));
@@ -186,8 +189,9 @@ public class Bot extends ListenerAdapter {
         } catch (IllegalArgumentException e) {
             evento.getHook().sendMessageEmbeds(Visual.aviso(e.getMessage())).queue();
         } catch (Exception e) {
-            LOG.error("falha em /{}", evento.getName(), e);   // sem valores nem descrições no log
-            evento.getHook().sendMessageEmbeds(Visual.erro("Algo deu errado do meu lado. Tenta de novo daqui a pouco.")).queue();
+            String codigo = codigoDeErro();
+            LOG.error("falha em /{} [{}]", evento.getName(), codigo, e);   // sem valores nem descrições no log
+            evento.getHook().sendMessageEmbeds(Visual.erroInterno(codigo)).queue();
         }
     }
 
@@ -225,7 +229,8 @@ public class Bot extends ListenerAdapter {
             List<Resposta> respostas = switch (tipoDaDm(texto)) {
                 case LANCAMENTO -> lote(usuario, texto);
                 case CONSULTA -> List.of(responderConsulta(usuario, Entrada.consulta(texto)));
-                case NAO_ENTENDI -> List.of(Resposta.de(Visual.naoEntendi()));
+                // Na primeira vez, as boas-vindas já explicam como escrever.
+                case NAO_ENTENDI -> primeiraVez ? List.of() : List.of(Resposta.de(Visual.naoEntendi()));
             };
             if (primeiraVez) {
                 evento.getMessage().replyEmbeds(Visual.boasVindas()).queue();
@@ -240,12 +245,25 @@ public class Bot extends ListenerAdapter {
         } catch (IllegalArgumentException e) {
             evento.getMessage().replyEmbeds(Visual.aviso(e.getMessage())).queue();
         } catch (Exception e) {
-            LOG.error("falha ao interpretar mensagem", e);
-            evento.getMessage().replyEmbeds(Visual.erro("Algo deu errado do meu lado. Tenta de novo daqui a pouco.")).queue();
+            String codigo = codigoDeErro();
+            LOG.error("falha ao interpretar mensagem [{}]", codigo, e);
+            evento.getMessage().replyEmbeds(Visual.erroInterno(codigo)).queue();
         }
     }
 
     enum Dm { LANCAMENTO, CONSULTA, NAO_ENTENDI }
+
+    private static final String ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    private static final java.util.Random SORTEIO = new java.util.Random();
+
+    /** Código curto que vai na mensagem e no log: a pessoa reporta, o mantenedor acha. */
+    static String codigoDeErro() {
+        StringBuilder sb = new StringBuilder(4);
+        for (int i = 0; i < 4; i++) {
+            sb.append(ALFABETO.charAt(SORTEIO.nextInt(ALFABETO.length())));
+        }
+        return sb.toString();
+    }
 
     /** Na DM a conversa é só com o Tino: o que não é lançamento nem consulta recebe instrução. */
     static Dm tipoDaDm(String texto) {
@@ -319,8 +337,9 @@ public class Bot extends ListenerAdapter {
         } catch (IllegalArgumentException e) {
             evento.replyEmbeds(Visual.aviso(e.getMessage())).setEphemeral(true).queue();
         } catch (Exception e) {
-            LOG.error("falha no botão {}", partes[0], e);
-            evento.reply("Algo deu errado do meu lado. Tenta de novo daqui a pouco.").setEphemeral(true).queue();
+            String codigo = codigoDeErro();
+            LOG.error("falha no botão {} [{}]", partes[0], codigo, e);
+            evento.replyEmbeds(Visual.erroInterno(codigo)).setEphemeral(true).queue();
         }
     }
 
@@ -354,8 +373,9 @@ public class Bot extends ListenerAdapter {
         } catch (IllegalArgumentException e) {
             evento.getHook().sendMessageEmbeds(Visual.aviso(e.getMessage())).setEphemeral(true).queue();
         } catch (Exception e) {
-            LOG.error("falha ao editar", e);
-            evento.getHook().sendMessageEmbeds(Visual.erro("Não consegui editar. Tenta de novo daqui a pouco.")).setEphemeral(true).queue();
+            String codigo = codigoDeErro();
+            LOG.error("falha ao editar [{}]", codigo, e);
+            evento.getHook().sendMessageEmbeds(Visual.erroInterno(codigo)).setEphemeral(true).queue();
         }
     }
 

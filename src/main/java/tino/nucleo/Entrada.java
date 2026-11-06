@@ -293,7 +293,7 @@ public final class Entrada {
             data = data.minusYears(1);
         }
         if (data.isAfter(hoje)) {
-            throw new IllegalArgumentException("a data não pode ser futura");
+            throw new IllegalArgumentException("a data não pode ser futura: use hoje ou um dia que já passou");
         }
         return data;
     }

@@ -17,7 +17,7 @@ public final class Dinheiro {
     /** Aceita "50", "50,00", "1.234,56", "1234.56" e "R$ 50". Sempre positivo. */
     public static long paraCentavos(String texto) {
         if (texto == null || texto.isBlank()) {
-            throw new IllegalArgumentException("informe um valor");
+            throw new IllegalArgumentException("falta o valor: manda assim `50` ou `50,00`");
         }
 
         String limpo = texto.replace("R$", "").replace(" ", "").trim();
@@ -30,7 +30,7 @@ public final class Dinheiro {
             int ultimo = limpo.lastIndexOf('.');
             int casas = limpo.length() - ultimo - 1;
             if (casas > 3) {
-                throw new IllegalArgumentException("valor inválido: " + texto);
+                throw new IllegalArgumentException("não entendi o valor `%s`: use `50`, `50,00` ou `1.234,56`".formatted(texto));
             }
             limpo = casas == 3
                     ? limpo.replace(".", "")
@@ -41,7 +41,7 @@ public final class Dinheiro {
         try {
             valor = new BigDecimal(limpo);
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("valor inválido: " + texto);
+            throw new IllegalArgumentException("não entendi o valor `%s`: use `50`, `50,00` ou `1.234,56`".formatted(texto));
         }
 
         if (valor.signum() <= 0) {

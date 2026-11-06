@@ -38,7 +38,12 @@ public final class Tino {
     // ponytail: um fuso para todo mundo. Fuso por pessoa entra com o site, numa coluna em conta.
     static final ZoneId FUSO = ZoneId.of("America/Sao_Paulo");
 
-    static final Duration VALIDADE_PENDENTE = Duration.ofHours(24);
+    /** Os números do alerta, públicos para o canal explicar a regra com os mesmos valores. */
+    public static final int VEZES_O_NORMAL = 5;
+    public static final int DIAS_DO_NORMAL = Financas.DIAS_DO_NORMAL;
+    public static final int HORAS_PARA_RESPONDER = 24;
+
+    static final Duration VALIDADE_PENDENTE = Duration.ofHours(HORAS_PARA_RESPONDER);
 
     // ponytail: uma conexão só, serializada pelos métodos synchronized. Um app pessoal
     // não tem concorrência que justifique pool; se tiver, trocar por HikariCP.
@@ -158,7 +163,7 @@ public final class Tino {
 
     private void exigirPassado(Pedido p) {
         if (p.data().isAfter(hoje())) {
-            throw new IllegalArgumentException("a data não pode ser futura");
+            throw new IllegalArgumentException("a data não pode ser futura: use hoje ou um dia que já passou");
         }
     }
 
@@ -199,7 +204,9 @@ public final class Tino {
                             item.categoria(), item.descricao(), Entrada.data(item.data(), hoje()))));
                 } catch (IllegalArgumentException e) {
                     throw itens.size() == 1 ? e
-                            : new IllegalArgumentException("No %dº item: %s".formatted(i + 1, e.getMessage()), e);
+                            : new IllegalArgumentException(
+                                    "No %dº item: %s. Nada foi anotado, manda de novo corrigido."
+                                            .formatted(i + 1, e.getMessage()), e);
                 }
             }
             return eventos;
@@ -239,7 +246,7 @@ public final class Tino {
      * zero) nada é fora do normal: qualquer valor pareceria atípico.
      */
     static boolean foraDoNormal(long centavos, long tipico) {
-        return tipico > 0 && Math.abs(centavos) > tipico * 5;
+        return tipico > 0 && Math.abs(centavos) > tipico * VEZES_O_NORMAL;
     }
 
     private static String nome(Pedido p) {
@@ -262,7 +269,7 @@ public final class Tino {
     /** Edição não transforma gasto em ganho: o pedido precisa ter o sinal do original. */
     public synchronized Registro editar(String usuario, long id, Pedido p) throws SQLException {
         Lancamento antes = Financas.buscar(conexao, usuario, id).orElseThrow(
-                () -> new IllegalArgumentException("esse lançamento já não existe"));
+                () -> new IllegalArgumentException("esse lançamento já não existe: veja os ids em `/lancamentos`"));
         if ((antes.centavos() > 0) != (p.centavos() > 0)) {
             throw new IllegalArgumentException("a edição não troca gasto por ganho");
         }
