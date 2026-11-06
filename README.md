@@ -121,7 +121,7 @@ docs/
 ├── PRIVACIDADE.md    o que é guardado e como apagar
 ├── TERMOS.md         regras de uso do bot
 └── marca/            o Tino em SVG, GIF e PNG
-.github/workflows/    CI: mvn verify em push na main e em PR
+.github/workflows/    CI: lint (javac -Xlint), testes e build da imagem arm64
 ```
 
 ## Limitações

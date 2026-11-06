@@ -6,7 +6,19 @@ on:
   pull_request:
 
 jobs:
-  testes:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      # -Xlint:all com failOnWarning: qualquer aviso do javac quebra o build.
+      - run: mvn -B test-compile -Dlint=true
+
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,3 +28,18 @@ jobs:
           java-version: '25'
           cache: maven
       - run: mvn -B verify
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # O runner é x86_64 e a VM é ARM, então o build é emulado.
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
