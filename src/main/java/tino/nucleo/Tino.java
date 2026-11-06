@@ -205,7 +205,7 @@ public final class Tino {
                 } catch (IllegalArgumentException e) {
                     throw itens.size() == 1 ? e
                             : new IllegalArgumentException(
-                                    "No %dº item: %s. Nada foi anotado, manda de novo corrigido."
+                                    "No %dº item — %s. Nada foi anotado, manda de novo corrigido."
                                             .formatted(i + 1, e.getMessage()), e);
                 }
             }
