@@ -227,7 +227,8 @@ public final class Entrada {
         if (texto == null || texto.isBlank() || texto.length() > 120) {
             return null;
         }
-        String limpo = semAcento(texto.toLowerCase(BR)).replaceAll("[?!.,]", " ").trim();
+        // "/" entra na limpeza: comando digitado sem escolher na lista chega como texto ("/help").
+        String limpo = semAcento(texto.toLowerCase(BR)).replaceAll("[?!.,/]", " ").trim();
 
         String tipo = null;
         int melhor = -1;

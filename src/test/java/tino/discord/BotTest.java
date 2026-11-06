@@ -34,4 +34,11 @@ class BotTest {
     void codigoDeErroTemQuatroCaracteres() {
         assertTrue(Bot.codigoDeErro().matches("[A-Z0-9]{4}"));
     }
+
+    @Test
+    void comandoDigitadoComoTextoViraAjuda() {
+        // Sem escolher na lista, o Discord manda "/help" como mensagem comum.
+        assertEquals(Bot.Dm.CONSULTA, Bot.tipoDaDm("/help"));
+        assertEquals(Bot.Dm.CONSULTA, Bot.tipoDaDm("/ajuda"));
+    }
 }
