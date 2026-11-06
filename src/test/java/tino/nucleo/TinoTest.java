@@ -412,6 +412,15 @@ class TinoTest {
     }
 
     @Test
+    void editarComDescricaoEmBrancoGravaSemDescricao() throws SQLException {
+        long id = tino.registrar(EU, -5_000, "Lazer", "cinema", HOJE).id();
+
+        tino.editar(EU, id, new Pedido(-5_000, "Lazer", "  ", HOJE));
+
+        assertNull(tino.buscar(EU, id).orElseThrow().descricao());
+    }
+
+    @Test
     void lancarRecusaDataFutura() throws SQLException {
         assertThrows(IllegalArgumentException.class,
                 () -> tino.lancar(EU, new Pedido(-100, "Mercado", null, HOJE.plusDays(1))));

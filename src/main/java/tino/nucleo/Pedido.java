@@ -12,6 +12,10 @@ public record Pedido(long centavos, String categoria, String descricao, LocalDat
         if (data == null) {
             throw new IllegalArgumentException("falta a data");
         }
+        // Campo de formulário deixado em branco chega como "", não como ausente.
+        if (descricao != null && descricao.isBlank()) {
+            descricao = null;
+        }
         if (descricao != null && descricao.length() > 200) {
             throw new IllegalArgumentException("descrição muito longa");
         }
