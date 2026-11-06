@@ -30,7 +30,8 @@ próximos canais sobre a mesma conta.
 ```
 
 Na DM, sem barra e sem formulário. Também vale perguntar: **quanto gastei esse mês?**, **extrato
-de hoje**. Cada lançamento mostra o acumulado da categoria no mês, com botões para desfazer e
+de hoje**. O que ele não entende recebe o jeito certo de escrever, nunca silêncio, e o status
+"Me manda: 50 mercado" ao lado do nome mostra que ele está no ar. Cada lançamento mostra o acumulado da categoria no mês, com botões para desfazer e
 editar, e o `/resumo` traz as categorias em barras, a variação sobre o período anterior e a
 projeção do mês.
 
@@ -72,6 +73,7 @@ a resposta volta por `Tino.confirmar` ou `Tino.descartar`. Um canal novo (site, 
 | `/resumo` | Por categoria, com variação e projeção do mês |
 | `/lancamentos` · `/exportar` | Lista com os ids · CSV |
 | `/remover` · `/categoria` · `/fixo` | Apagar, organizar categorias, lançamentos fixos |
+| `/ajuda` · `/help` | Como escrever e o que cada comando faz |
 
 Cada pessoa vê só os próprios dados. O que é guardado e como apagar está em
 [PRIVACIDADE.md](docs/PRIVACIDADE.md); as regras de uso, em [TERMOS.md](docs/TERMOS.md).

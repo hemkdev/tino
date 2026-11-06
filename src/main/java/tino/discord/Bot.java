@@ -10,6 +10,7 @@ import tino.nucleo.Tino;
 import tino.nucleo.Tipo;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -61,6 +62,8 @@ public class Bot extends ListenerAdapter {
         // DIRECT_MESSAGES não é privilegiada, e em DM o conteúdo da mensagem vem
         // preenchido sem precisar da intent de conteúdo.
         JDA jda = JDABuilder.createLight(token, GatewayIntent.DIRECT_MESSAGES)
+                // Ao lado da bolinha verde: mostra que está no ar e como começar.
+                .setActivity(Activity.customStatus("Me manda: 50 mercado"))
                 .addEventListeners(new Bot(tino))
                 .build()
                 .awaitReady();
@@ -69,13 +72,31 @@ public class Bot extends ListenerAdapter {
     }
 
     private static void registrarComandos(JDA jda) {
+        List<CommandData> comandos = comandos();
+
+        String guild = System.getenv("DISCORD_GUILD_ID");
+        if (guild != null && !guild.isBlank()) {
+            // Registro por guild aparece na hora — útil ao mexer nas assinaturas.
+            jda.getGuildById(guild).updateCommands().addCommands(comandos).queue();
+            LOG.info("comandos registrados na guild {}", guild);
+            return;
+        }
+        // Global: única forma de os comandos existirem em conversa privada.
+        comandos.forEach(comando -> comando
+                .setIntegrationTypes(IntegrationType.ALL)
+                .setContexts(InteractionContextType.ALL));
+        jda.updateCommands().addCommands(comandos).queue();
+        LOG.info("comandos registrados globalmente");
+    }
+
+    static List<CommandData> comandos() {
         OptionData descricao = new OptionData(OptionType.STRING, "descricao", "Opcional");
         OptionData data = new OptionData(OptionType.STRING, "data", "DD/MM ou AAAA-MM-DD (padrão: hoje)");
         OptionData periodo = new OptionData(OptionType.STRING, "periodo", "Padrão: mês")
                 .addChoice("hoje", "dia").addChoice("semana", "semana")
                 .addChoice("mês", "mes").addChoice("ano", "ano");
 
-        List<CommandData> comandos = List.of(
+        return List.of(
                 Commands.slash("gasto", "Registra uma despesa").addOptions(
                         new OptionData(OptionType.STRING, "valor", "Ex.: 50 ou 1.234,56", true),
                         new OptionData(OptionType.STRING, "categoria",
@@ -103,6 +124,7 @@ public class Bot extends ListenerAdapter {
                         new OptionData(OptionType.INTEGER, "id", "Número mostrado em /lancamentos", true)),
 
                 Commands.slash("ajuda", "Como usar o bot"),
+                Commands.slash("help", "Como usar o bot"),
 
                 Commands.slash("categoria", "Gerencia suas categorias").addSubcommands(
                         new SubcommandData("listar", "Mostra suas categorias e quanto resta do limite"),
@@ -130,20 +152,6 @@ public class Bot extends ListenerAdapter {
                                         new OptionData(OptionType.INTEGER, "id",
                                                 "Número mostrado em /fixo listar", true)),
                                 new SubcommandData("lancar", "Registra todos os fixos de uma vez")));
-
-        String guild = System.getenv("DISCORD_GUILD_ID");
-        if (guild != null && !guild.isBlank()) {
-            // Registro por guild aparece na hora — útil ao mexer nas assinaturas.
-            jda.getGuildById(guild).updateCommands().addCommands(comandos).queue();
-            LOG.info("comandos registrados na guild {}", guild);
-            return;
-        }
-        // Global: única forma de os comandos existirem em conversa privada.
-        comandos.forEach(comando -> comando
-                .setIntegrationTypes(IntegrationType.ALL)
-                .setContexts(InteractionContextType.ALL));
-        jda.updateCommands().addCommands(comandos).queue();
-        LOG.info("comandos registrados globalmente");
     }
 
     private static OptionData tipoObrigatorio() {
@@ -191,7 +199,7 @@ public class Bot extends ListenerAdapter {
             case "remover" -> Resposta.de(remover(evento, usuario));
             case "categoria" -> Resposta.de(categoria(evento, usuario));
             case "fixo" -> Resposta.de(fixo(evento, usuario));
-            case "ajuda" -> Resposta.de(Visual.ajuda());
+            case "ajuda", "help" -> Resposta.de(Visual.ajuda());
             default -> Resposta.de(Visual.erro("Não conheço esse comando. Digite `ajuda` para ver o que eu faço."));
         };
     }
@@ -211,17 +219,14 @@ public class Bot extends ListenerAdapter {
             return;
         }
         String texto = evento.getMessage().getContentRaw().trim();
-        boolean lancamento = Entrada.pareceLancamento(texto);
-        Entrada.Consulta consulta = lancamento ? null : Entrada.consulta(texto);
-        if (!lancamento && consulta == null) {
-            return;   // conversa solta não vira nada
-        }
         try {
             String usuario = tino.conta("discord", evento.getAuthor().getId());
             boolean primeiraVez = tino.preparar(usuario);
-            List<Resposta> respostas = lancamento
-                    ? lote(usuario, texto)
-                    : List.of(responderConsulta(usuario, consulta));
+            List<Resposta> respostas = switch (tipoDaDm(texto)) {
+                case LANCAMENTO -> lote(usuario, texto);
+                case CONSULTA -> List.of(responderConsulta(usuario, Entrada.consulta(texto)));
+                case NAO_ENTENDI -> List.of(Resposta.de(Visual.naoEntendi()));
+            };
             if (primeiraVez) {
                 evento.getMessage().replyEmbeds(Visual.boasVindas()).queue();
             }
@@ -238,6 +243,16 @@ public class Bot extends ListenerAdapter {
             LOG.error("falha ao interpretar mensagem", e);
             evento.getMessage().replyEmbeds(Visual.erro("Algo deu errado do meu lado. Tenta de novo daqui a pouco.")).queue();
         }
+    }
+
+    enum Dm { LANCAMENTO, CONSULTA, NAO_ENTENDI }
+
+    /** Na DM a conversa é só com o Tino: o que não é lançamento nem consulta recebe instrução. */
+    static Dm tipoDaDm(String texto) {
+        if (Entrada.pareceLancamento(texto)) {
+            return Dm.LANCAMENTO;
+        }
+        return Entrada.consulta(texto) == null ? Dm.NAO_ENTENDI : Dm.CONSULTA;
     }
 
     /** "quanto gastei essa semana", "extrato de hoje" e afins. */
@@ -320,6 +335,7 @@ public class Bot extends ListenerAdapter {
         evento.deferEdit().queue();
         try {
             if (partes.length < 3 || !partes[1].equals(tino.conta("discord", evento.getUser().getId()))) {
+                evento.getHook().sendMessage("Esse formulário não é seu.").setEphemeral(true).queue();
                 return;
             }
             long id = Long.parseLong(partes[2]);

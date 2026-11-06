@@ -466,6 +466,15 @@ final class Visual {
         return s == null || s.isEmpty() ? "" : Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 
+    /** Na DM o Tino nunca fica calado: o que ele não entende vira instrução. */
+    static MessageEmbed naoEntendi() {
+        return new EmbedBuilder().setColor(AMARELO).setThumbnail(Estado.ERRO.url())
+                .setDescription("""
+                        Não entendi. Me manda assim: `50 mercado` ou `+3000 salário`.
+                        Pra ver tudo que eu sei fazer: `/ajuda`""")
+                .build();
+    }
+
     static MessageEmbed erro(String mensagem) {
         return new EmbedBuilder().setColor(VERMELHO).setThumbnail(Estado.ERRO.url())
                 .setDescription("❌ " + mensagem).build();
