@@ -38,6 +38,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Random;
 
 /** Canal Discord: traduz eventos do JDA em chamadas ao {@link Tino} e respostas em embed. */
 public class Bot extends ListenerAdapter {
@@ -254,7 +255,7 @@ public class Bot extends ListenerAdapter {
     enum Dm { LANCAMENTO, CONSULTA, NAO_ENTENDI }
 
     private static final String ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    private static final java.util.Random SORTEIO = new java.util.Random();
+    private static final Random SORTEIO = new Random();
 
     /** Código curto que vai na mensagem e no log: a pessoa reporta, o mantenedor acha. */
     static String codigoDeErro() {

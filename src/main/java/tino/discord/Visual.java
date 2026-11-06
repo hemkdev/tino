@@ -17,6 +17,8 @@ import net.dv8tion.jda.api.interactions.components.text.TextInput;
 import net.dv8tion.jda.api.interactions.components.text.TextInputStyle;
 import net.dv8tion.jda.api.interactions.modals.Modal;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -484,7 +486,19 @@ final class Visual {
 
     static MessageEmbed erroInterno(String codigo) {
         return erro("Algo deu errado do meu lado. Tenta de novo daqui a pouco.\n"
-                + "Se continuar, me passa o código `%s`.".formatted(codigo));
+                + "Se continuar, [me avisa por aqui](%s) com o código `%s`.".formatted(linkDoAviso(codigo), codigo));
+    }
+
+    /** Issue já preenchida. É pública, então o corpo pede para não colar valor nem dado pessoal. */
+    private static String linkDoAviso(String codigo) {
+        String corpo = """
+                Código: %s
+                O que eu estava fazendo:
+
+                (não cole valores, descrições nem dados pessoais: este aviso é público)""".formatted(codigo);
+        return "https://github.com/hemkdev/Tino/issues/new?title=%s&body=%s".formatted(
+                URLEncoder.encode("Erro " + codigo, StandardCharsets.UTF_8),
+                URLEncoder.encode(corpo, StandardCharsets.UTF_8));
     }
 
     static MessageEmbed erro(String mensagem) {

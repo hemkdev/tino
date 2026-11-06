@@ -283,6 +283,13 @@ class VisualTest {
     }
 
     @Test
+    void erroInternoLevaAoAvisoJaPreenchido() {
+        String d = Visual.erroInterno("K3F9").getDescription();
+
+        assertTrue(d.contains("(https://github.com/hemkdev/Tino/issues/new?title=Erro+K3F9&body="), d);
+    }
+
+    @Test
     void alertaExplicaONumeroEOPrazo() {
         String rodape = Visual.foraDoNormal(new Evento.ForaDoNormal("k",
                 new Pedido(-480_000, "Moradia", null, HOJE), 180_000)).getFooter().getText();
