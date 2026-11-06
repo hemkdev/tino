@@ -34,8 +34,9 @@ do git (plano, brief, specs).
 ## Em aberto
 
 - **Contrato do MCP:** campos estruturados ou texto livre pela `Entrada`.
-- **Público:** só o dono ou pessoas de fora. Define o peso do login e o que
-  `docs/PRIVACIDADE.md` precisa garantir.
+
+O bot é público (decisão de 2026-11-05): qualquer pessoa instala. Por isso `docs/PRIVACIDADE.md`
+e `docs/TERMOS.md` valem para gente de fora, e mudança que toque em dado pessoal atualiza os dois.
 
 ## Commits, branches e PRs
 
