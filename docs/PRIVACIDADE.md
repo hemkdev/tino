@@ -1,6 +1,6 @@
 # Política de Privacidade — Tino
 
-**Última atualização:** 4 de novembro de 2026
+**Última atualização:** 5 de novembro de 2026
 
 O Tino é um bot de Discord de código aberto, mantido por
 [hemkdev](https://github.com/hemkdev) como projeto pessoal. Esta política
@@ -18,6 +18,9 @@ Quando você registra um lançamento, ficam guardados:
 - **Descrição**, quando você escreve uma
 - **Suas categorias**, incluindo as que você criar ou renomear
 - **Lançamentos fixos** que você cadastrar
+- **Lançamentos à espera de confirmação** — quando um valor foge muito do seu
+  normal, o pedido fica guardado até você responder [Tá certo] ou [Corrigir],
+  por no máximo 24 horas, e depois é apagado
 
 Nada além disso.
 

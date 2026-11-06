@@ -74,7 +74,7 @@ a resposta volta por `Tino.confirmar` ou `Tino.descartar`. Um canal novo (site, 
 | `/remover` · `/categoria` · `/fixo` | Apagar, organizar categorias, lançamentos fixos |
 
 Cada pessoa vê só os próprios dados. O que é guardado e como apagar está em
-[PRIVACIDADE.md](docs/PRIVACIDADE.md).
+[PRIVACIDADE.md](docs/PRIVACIDADE.md); as regras de uso, em [TERMOS.md](docs/TERMOS.md).
 
 ## Garantias
 
@@ -117,6 +117,7 @@ docs/
 ├── banco.md          esquema e regras que não são negociáveis
 ├── personagem.md     estados, falas e os próximos traços
 ├── PRIVACIDADE.md    o que é guardado e como apagar
+├── TERMOS.md         regras de uso do bot
 └── marca/            o Tino em SVG, GIF e PNG
 .github/workflows/    CI: mvn verify em push na main e em PR
 ```
