@@ -1,0 +1,8 @@
+.env
+.env.*
+*.db*
+local/
+target/
+.git/
+.idea/
+docs/
