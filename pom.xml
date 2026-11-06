@@ -11,6 +11,7 @@
   <properties>
     <maven.compiler.release>25</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <lint>false</lint>
   </properties>
 
   <dependencies>
@@ -50,6 +51,19 @@
   <build>
     <finalName>tino</finalName>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+          <!-- O job lint do CI liga -Dlint=true: todo aviso do javac vira erro. -->
+          <failOnWarning>${lint}</failOnWarning>
+          <compilerArgs>
+            <arg>-Xlint:all</arg>
+          </compilerArgs>
+        </configuration>
+      </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>

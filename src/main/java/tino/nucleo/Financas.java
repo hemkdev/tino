@@ -86,8 +86,9 @@ final class Financas {
     /**
      * Cria as categorias iniciais na primeira vez que o usuário aparece.
      * São dele, e não do sistema, justamente para que possa renomear e excluir.
+     *
+     * @return true na primeira vez, para quem chama poder dar as boas-vindas
      */
-    /** @return true na primeira vez, para quem chama poder dar as boas-vindas. */
     static boolean prepararUsuario(Connection c, String usuario) throws SQLException {
         try (PreparedStatement ps = c.prepareStatement(
                 "SELECT COUNT(*) FROM categoria WHERE usuario = ?")) {
