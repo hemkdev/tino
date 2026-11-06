@@ -29,4 +29,9 @@ class BotTest {
         assertTrue(nomes.contains("ajuda"));
         assertTrue(nomes.contains("help"));
     }
+
+    @Test
+    void codigoDeErroTemQuatroCaracteres() {
+        assertTrue(Bot.codigoDeErro().matches("[A-Z0-9]{4}"));
+    }
 }

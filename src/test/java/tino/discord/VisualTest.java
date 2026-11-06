@@ -276,4 +276,29 @@ class VisualTest {
     void boasVindasMostraOTinoEsperando() {
         assertTrue(broto(Visual.boasVindas()).endsWith("/ocioso.gif"));
     }
+
+    @Test
+    void erroInternoTrazCodigo() {
+        assertTrue(Visual.erroInterno("K3F9").getDescription().contains("`K3F9`"));
+    }
+
+    @Test
+    void alertaExplicaONumeroEOPrazo() {
+        String rodape = Visual.foraDoNormal(new Evento.ForaDoNormal("k",
+                new Pedido(-480_000, "Moradia", null, HOJE), 180_000)).getFooter().getText();
+
+        assertTrue(rodape.contains("90 dias"), rodape);
+        assertTrue(rodape.contains("24 h"), rodape);
+    }
+
+    @Test
+    void ajudaExplicaQuandoPerguntaAntes() {
+        assertTrue(Visual.ajuda().getFields().stream()
+                .anyMatch(f -> f.getName().equals("Quando eu pergunto antes") && f.getValue().contains("24 h")));
+    }
+
+    @Test
+    void boasVindasApontamParaAjuda() {
+        assertTrue(Visual.boasVindas().getFooter().getText().contains("/ajuda"));
+    }
 }
