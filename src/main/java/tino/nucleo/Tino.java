@@ -1,10 +1,12 @@
 package tino.nucleo;
 
+import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.FlywayException;
+
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -76,20 +78,57 @@ public final class Tino {
         this.relogio = relogio;
     }
 
-    public static Tino abrir(String caminho) throws SQLException {
-        return abrir(caminho, Clock.system(FUSO));
+    /**
+     * Conecta a um banco já migrado. Esquema atrasado ou divergente não sobe: migrar é um
+     * passo próprio do deploy ({@link #migrar}), para uma migration ruim não derrubar o bot no ar.
+     */
+    public static Tino abrir(String url, String usuario, String senha) throws SQLException {
+        return abrir(url, usuario, senha, Clock.system(FUSO));
     }
 
-    static Tino abrir(String caminho, Clock relogio) throws SQLException {
-        Connection conexao = DriverManager.getConnection("jdbc:sqlite:" + caminho);
-        try (Statement s = conexao.createStatement()) {
-            s.execute("PRAGMA journal_mode=WAL");
-            s.execute("PRAGMA busy_timeout=5000");
+    static Tino abrir(String url, String usuario, String senha, Clock relogio) throws SQLException {
+        try {
+            flyway(url, usuario, senha).validate();
+            return new Tino(DriverManager.getConnection(url, usuario, senha), relogio);
+        } catch (FlywayException | SQLException e) {
+            if (quedaDeConexao(e)) {
+                throw new IllegalStateException("não consegui conectar ao banco de DATABASE_URL", e);
+            }
+            throw new IllegalStateException(
+                    "o esquema do banco não bate com esta versão: rode `java -jar tino.jar migrar`", e);
         }
-        Financas.criarTabelas(conexao);
-        Financas.normalizarCategorias(conexao);
-        Financas.migrarParaContas(conexao);
-        return new Tino(conexao, relogio);
+    }
+
+    /**
+     * Erro de conexão (SQLState classe 08), em qualquer ponto da cadeia de causas. Os outros
+     * erros de banco são bug ou dado, e não se resolvem reiniciando.
+     */
+    public static boolean quedaDeConexao(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof SQLException sql && sql.getSQLState() != null
+                    && sql.getSQLState().startsWith("08")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** False quando a conexão já não responde, mesmo que o erro não tenha dito que era ela. */
+    public synchronized boolean conectado() {
+        try {
+            return conexao.isValid(2);
+        } catch (SQLException e) {
+            return false;
+        }
+    }
+
+    /** Aplica as migrations pendentes de {@code db/migration}. Rodar de novo não faz nada. */
+    public static void migrar(String url, String usuario, String senha) {
+        flyway(url, usuario, senha).migrate();
+    }
+
+    private static Flyway flyway(String url, String usuario, String senha) {
+        return Flyway.configure().dataSource(url, usuario, senha).load();
     }
 
     ZoneId fuso() {

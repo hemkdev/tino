@@ -6,7 +6,7 @@
 
 ![Java](https://img.shields.io/badge/Java-25-ED8B00?style=flat&logo=openjdk&logoColor=white)
 ![JDA](https://img.shields.io/badge/JDA-5.6-5865F2?style=flat&logo=discord&logoColor=white)
-![SQLite](https://img.shields.io/badge/SQLite-3-003B57?style=flat&logo=sqlite&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?style=flat&logo=postgresql&logoColor=white)
 
 <img src="docs/marca/svg/ocioso.svg" width="160" alt="O Tino, um brotinho azul com uma moeda no colo">
 
@@ -52,7 +52,7 @@ flowchart LR
     msg["Mensagem no Discord<br/>50 mercado"] --> bot["Bot<br/>tino.discord"]
     bot --> tino["Tino<br/>tino.nucleo"]
     tino --> entrada["Entrada<br/>interpreta o texto"]
-    tino --> fin[("Financas<br/>SQLite")]
+    tino --> fin[("Financas<br/>Postgres")]
     tino --> ev{"Evento"}
     ev -- Registrado --> vis["Visual<br/>resposta com o Tino"]
     ev -- ForaDoNormal --> pend["Visual<br/>pergunta antes"]
@@ -81,8 +81,7 @@ Cada pessoa vê só os próprios dados. O que é guardado e como apagar está em
 ## Garantias
 
 - **Toda query filtra pela conta.** Sem exceção: ninguém lê o lançamento de outra pessoa.
-- **Dinheiro em centavos inteiros.** Nunca `double`: o SQLite não tem decimal, e ponto flutuante
-  em dinheiro é bug.
+- **Dinheiro em centavos inteiros.** Nunca `double`: ponto flutuante em dinheiro é bug.
 - **Valor estranho não grava sozinho.** Acima de 5× a média recente da categoria, ele pergunta
   antes, e o pedido pendente tem chave aleatória que só a dona confirma.
 - **A fronteira é do compilador, não da disciplina.** `Financas`, que tem o SQL, é
@@ -90,22 +89,32 @@ Cada pessoa vê só os próprios dados. O que é guardado e como apagar está em
   evento novo que algum canal esqueça de tratar também não compila.
 - **Data futura é rejeitada**, e o valor precisa ser maior que zero, com no máximo duas casas.
 - **Nada de token ou dado financeiro em log.**
-- **Testes a cada PR**, contra SQLite em memória, no GitHub Actions (`mvn verify`).
+- **Testes a cada PR**, contra um Postgres 17 de verdade, no GitHub Actions (`mvn verify`).
 
 As regras completas e o porquê de cada uma estão em [banco.md](docs/banco.md) e
 [decisoes.md](docs/decisoes.md).
 
 ## Rodar
 
-Precisa de Java 25 e Maven.
+Precisa de Java 25, Maven e Docker (ou Podman) para o Postgres.
 
 ```bash
+docker compose up -d                  # Postgres 17 em localhost:5433
+mvn verify                            # testes, num banco tino_teste à parte
 mvn package
+
+export DATABASE_URL=jdbc:postgresql://localhost:5433/tino DATABASE_USER=tino DATABASE_PASSWORD=tino
+java -jar target/tino.jar migrar      # aplica as migrations e sai
 DISCORD_TOKEN="seu-token" java -jar target/tino.jar
 ```
 
-Os dados ficam em `tino.db` (ou no caminho de `BANCO_CAMINHO`). `DISCORD_GUILD_ID` registra os
-comandos numa guild só, o que é imediato; sem ela o registro é global, necessário para a DM.
+Sem alguma dessas variáveis, o bot sai dizendo qual falta. Com o esquema atrasado, não sobe e
+pede o `migrar`. `DISCORD_GUILD_ID` registra os comandos numa guild só, o que é imediato; sem ela
+o registro é global, necessário para a DM.
+
+Com Podman, o `docker compose` precisa do socket dele:
+`systemctl --user start podman.socket` e
+`export DOCKER_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock`.
 
 ## Estrutura
 
@@ -113,7 +122,8 @@ comandos numa guild só, o que é imediato; sem ela o registro é global, necess
 src/main/java/tino/
 ├── nucleo/    Tino (casos de uso), Financas (SQL), Entrada, Dinheiro, Evento e os records do domínio
 └── discord/   Bot (eventos do JDA), Visual (embeds e botões), Estado
-src/test/java/tino/   testes do núcleo e do canal, contra SQLite em memória
+src/main/resources/db/migration/   migrations do Flyway (V1__esquema_inicial.sql, ...)
+src/test/java/tino/   testes do núcleo e do canal, contra o Postgres do docker-compose.yml
 docs/
 ├── decisoes.md       o que foi escolhido, o que foi recusado e por quê
 ├── banco.md          esquema e regras que não são negociáveis
@@ -128,11 +138,6 @@ docs/
 
 - **Só Discord por enquanto.** O núcleo já é independente, mas site, Telegram e MCP ainda não existem.
 - **Ainda não roda numa VPS.** O bot só responde enquanto o processo estiver de pé.
-- **Pedido à espera de confirmação fica em memória.** Se o bot reiniciar, ele se perde e o botão
-  responde que expirou.
-- **Parte das regras é checada só na entrada de texto.** Valor positivo e data não futura são
-  validados ao interpretar a mensagem (`Dinheiro`, `Entrada`). Um canal que monte o pedido direto
-  ainda não passa por essa checagem.
 - **Feito para uso pessoal.** Um processo, uma conexão e um lock. Se um dia houver concorrência
   de verdade, a troca é por um pool, sem mexer na API.
 
