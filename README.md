@@ -30,10 +30,14 @@ próximos canais sobre a mesma conta.
 ```
 
 Na DM, sem barra e sem formulário. Também vale perguntar: **quanto gastei esse mês?**, **extrato
-de hoje**. O que ele não entende recebe o jeito certo de escrever, nunca silêncio, e o status
-"Me manda: 50 mercado" ao lado do nome mostra que ele está no ar. Cada lançamento mostra o acumulado da categoria no mês, com botões para desfazer e
-editar, e o `/resumo` traz as categorias em barras, a variação sobre o período anterior e a
-projeção do mês.
+de hoje**. O que ele não entende recebe o jeito certo de escrever, nunca silêncio. Cada
+lançamento mostra o acumulado da categoria no mês, com botões para desfazer e editar, e o
+`/resumo` traz as categorias em barras, a variação sobre o período anterior e a projeção do mês.
+
+Na DM, o Tino pode aparecer offline mesmo no ar: o Discord só mostra a presença de um bot (o
+online e o "Me manda: 50 mercado") para quem divide um servidor com ele. Para saber se ele está
+respondendo, basta mandar uma mensagem.
+
 
 ## Os estados
 
