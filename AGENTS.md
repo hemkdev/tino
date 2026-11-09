@@ -1,12 +1,18 @@
 # AGENTS.md — Tino
 
-Finanças pessoais por conversa, em Java 25, sem framework e sem ORM: JDA, `sqlite-jdbc`, JUnit 5
-e Maven. Hoje o canal é o Discord; site, Telegram e MCP vêm sobre o mesmo núcleo.
+Finanças pessoais por conversa, em Java 25, sem framework e sem ORM: JDA, Postgres 17 (driver
+JDBC), Flyway, JUnit 5 e Maven. Hoje o canal é o Discord; site, Telegram e MCP vêm sobre o mesmo
+núcleo.
 
 ```bash
-mvn verify                                        # testes
-mvn package && java -jar target/tino.jar          # precisa de DISCORD_TOKEN
+docker compose up -d                              # Postgres 17 em localhost:5433
+mvn verify                                        # testes, no banco tino_teste
+mvn package && java -jar target/tino.jar migrar   # precisa de DATABASE_URL, _USER e _PASSWORD
+java -jar target/tino.jar                         # e também de DISCORD_TOKEN
 ```
+
+Esquema novo é uma migration nova em `src/main/resources/db/migration/` (`V2__...sql`); nunca
+editar uma que já foi para a `main`.
 
 ## Estrutura
 

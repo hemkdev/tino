@@ -1,8 +1,9 @@
 # Banco
 
-SQLite, um arquivo só (`tino.db`), aberto em modo WAL. O esquema é criado no boot com
-`CREATE TABLE IF NOT EXISTS`, sem ferramenta de migração enquanto ele couber nisso. As decisões
-de código estão em [decisoes.md](decisoes.md).
+Postgres 17. O esquema nasce das migrations do Flyway em `src/main/resources/db/migration/`
+(`V1__esquema_inicial.sql`, ...), só para frente: correção sai numa migration nova.
+`java -jar tino.jar migrar` aplica as pendentes e sai; o boot normal só confere (`validate`) e
+não sobe com o esquema atrasado. As decisões de código estão em [decisoes.md](decisoes.md).
 
 ```mermaid
 erDiagram
@@ -17,43 +18,43 @@ erDiagram
     conta ||--o{ pendente : "usuario"
 
     conta {
-        integer id PK
+        bigint id PK
     }
     identidade {
         text provedor PK
         text externo PK
-        integer conta_id FK
+        bigint conta_id FK
     }
     categoria {
-        integer id PK
-        text usuario
-        integer pai_id FK
+        bigint id PK
+        bigint usuario FK
+        bigint pai_id FK
         text tipo
         text nome
     }
     lancamento {
-        integer id PK
-        text usuario
-        integer valor_centavos
-        integer categoria_id FK
+        bigint id PK
+        bigint usuario FK
+        bigint valor_centavos
+        bigint categoria_id FK
         text descricao
-        text data
+        date data
     }
     recorrente {
-        integer id PK
-        text usuario
-        integer valor_centavos
-        integer categoria_id FK
+        bigint id PK
+        bigint usuario FK
+        bigint valor_centavos
+        bigint categoria_id FK
         text descricao
     }
     pendente {
         text chave PK
-        text usuario
-        integer valor_centavos
+        bigint usuario FK
+        bigint valor_centavos
         text categoria
         text descricao
-        text data
-        text criado_em
+        date data
+        timestamptz criado_em
     }
 ```
 
@@ -61,8 +62,7 @@ Um índice só: `idx_consulta ON lancamento (usuario, data)`, que serve a todo r
 
 `pendente` guarda o lançamento fora do normal que espera a pessoa responder [Tá certo] ou
 [Corrigir]. A chave é aleatória e vai no botão; só a dona confirma, uma vez. Expira em 24 h, e
-cada lançamento novo apaga os expirados da pessoa, sem job. `criado_em` é ISO-8601 em UTC
-truncado ao segundo, para a ordem do texto ser a do tempo.
+cada lançamento novo apaga os expirados da pessoa, sem job.
 
 ## Escolhas
 
@@ -75,7 +75,8 @@ existe fusão de contas.
 for negativo. Elimina uma coluna, um enum e todo o código que decidiria quando somar e quando
 subtrair.
 
-**Centavos em inteiro.** SQLite não tem decimal, e `double` em dinheiro é bug.
+**Centavos em inteiro.** `double` em dinheiro é bug, e inteiro dispensa escolher escala de
+`NUMERIC`.
 
 **Subcategoria é `pai_id` apontando para a própria tabela.** O resumo agrupa pela raiz, então uma
 subcategoria soma na categoria principal.
@@ -86,8 +87,8 @@ como categorias diferentes.
 **Categoria pertence sempre a alguém.** As iniciais são criadas para a conta no primeiro contato,
 e não como registros do sistema: é isso que permite renomear e excluir qualquer uma.
 
-**Nomes em forma canônica** (`Cartão de Crédito`), o que torna a comparação insensível a caixa
-mesmo com acento, onde o `COLLATE NOCASE` do SQLite falha.
+**Nomes em forma canônica** (`Cartão de Crédito`), o que torna a comparação exata insensível a
+caixa, mesmo com acento. A busca por trecho (autocomplete) usa `ILIKE`.
 
 ## Regras que não são negociáveis
 
@@ -100,7 +101,14 @@ Estas falham em silêncio se quebradas, então valem para qualquer código que e
 5. Comparação com período anterior de total zero mostra `—`, nunca divide por zero.
 6. Nada de token ou dado financeiro em log.
 
-Nenhuma delas é constraint do banco: o SQLite aqui não tem `CHECK` nem chave estrangeira para
-`usuario`, então quem garante é o núcleo. `Dinheiro` garante as duas casas; `Pedido` recusa valor
-zero e data nula; o `Tino` recusa data futura pelo próprio relógio, então canal que monta o pedido
-direto passa pelas mesmas regras.
+Quem garante é o núcleo: `Dinheiro` garante as duas casas; `Pedido` recusa valor zero e data
+nula; o `Tino` recusa data futura pelo próprio relógio, então canal que monta o pedido direto
+passa pelas mesmas regras. O banco repete o que consegue checar sozinho, sem saber que dia é
+hoje nem consultar outra tabela, e vale para qualquer caminho de escrita:
+
+- `usuario` é chave estrangeira para `conta`: não existe dado de uma conta que não existe;
+- `CHECK (valor_centavos <> 0)` em `lancamento`, `recorrente` e `pendente`;
+- `CHECK (tipo IN ('gasto', 'ganho'))` em `categoria`.
+
+Data futura e o filtro por `usuario` ficam só no código: um depende do relógio do `Tino`, o
+outro de cada query.

@@ -5,7 +5,7 @@ O que foi escolhido, o que foi recusado e por quê. O esquema e as regras do ban
 
 ## 1. Sem framework e sem ORM
 
-Java 25, JDA, `sqlite-jdbc` e JUnit. O projeto começou com arquitetura hexagonal completa, com
+Java 25, JDA, o driver JDBC do Postgres, Flyway e JUnit. O projeto começou com arquitetura hexagonal completa, com
 portas, adaptadores e documento de especificação, e foi reduzido de propósito quando ficou claro
 que a estrutura era maior que o problema. SQL escrito à mão cabe numa classe (`Financas`) e não
 esconde o que cada consulta faz. Os commits dessa fase continuam no histórico.
@@ -33,7 +33,7 @@ pool; se tiver, a troca é por HikariCP sem mexer na API.
 
 Os dados são da conta do Tino, não do id do Discord. Cada canal resolve a conta com
 `Tino.conta(provedor, externo)` na entrada, e entrar pelo Google mais tarde é ligar mais uma
-identidade à mesma conta. A migração dos ids antigos do Discord roda no boot e é idempotente.
+identidade à mesma conta.
 
 ## 5. Evento selado em vez de flag
 
@@ -58,8 +58,14 @@ pessoa entra com o site, que sabe o fuso do navegador; o Discord não sabe.
 
 ## 7. Sem interface de repositório
 
-Existe uma implementação só, e os testes rodam contra SQLite em memória, que abre em
-milissegundos. Uma interface aqui só existiria para ser trocada por mock, e não há o que trocar.
+Existe uma implementação só, e os testes rodam contra um Postgres 17 de verdade (o do
+`docker-compose.yml`, num banco `tino_teste`; no CI, um service), o mesmo de produção. Cada teste
+começa com `TRUNCATE ... RESTART IDENTITY CASCADE`. Uma interface aqui só existiria para ser
+trocada por mock, e não há o que trocar.
+
+Antes, os testes rodavam contra SQLite em memória. Com o Postgres, o banco do teste é o de
+produção: diferença de SQL entre os dois (o `LIKE` que ignora caixa num e não no outro) aparece
+no teste, e não no ar.
 
 ## 8. Personagem próprio
 
@@ -68,12 +74,29 @@ parecidos, e um mascote da Discord não serve num produto que vai para Telegram 
 uma criatura inventada, desenhada em SVG e animada só com CSS, para sair como SVG, GIF ou PNG sem
 JavaScript. Detalhes em [personagem.md](personagem.md).
 
+## 9. Postgres com migrations, e migrar não é subir
+
+O SQLite criava o esquema no boot e convertia dados antigos ali mesmo. Antes do primeiro deploy
+(e antes de ter usuário real, quando a troca é mais barata), o banco virou Postgres 17 em
+container, com migrations versionadas pelo Flyway. Só para frente: o Flyway Community não tem
+*undo*, e a rede de segurança é o `pg_dump` antes de migrar e as migrations testadas no CI.
+
+Migrar é um passo próprio (`java -jar tino.jar migrar`); o boot só roda o `validate`. No deploy,
+uma migration que falha para ali, e o bot antigo continua no ar.
+
+Continua uma conexão só (§3). Quando ela cai (SQLState classe `08`, ou `isValid` falso), o bot
+avisa a pessoa que está instável, sai com código 1 e o Docker religa com uma conexão nova. Os
+outros erros seguem no "Algo deu errado" com código. Reconexão interna seria código a manter
+para um caso que o restart já resolve.
+
 ## Recusado
 
 | Tentativa | Por que saiu |
 |---|---|
 | Arquitetura hexagonal com portas e adaptadores | estrutura maior que o problema |
 | Interface de repositório | uma implementação só, testes já rápidos |
+| SQLite em produção | esquema no boot, um escritor por vez, backup como arquivo solto |
+| Rollback automático de migration | o Flyway Community não tem *undo*; correção vai numa migration nova |
 | Gravar e avisar valor fora do normal | o erro de digitação já virava histórico; agora pergunta antes |
 | Chave sequencial para o pedido pendente | depois de reiniciar, um botão antigo acertava o pedido de outra pessoa |
 | Mascote derivado do Wumpus | diretrizes de marca da Discord |

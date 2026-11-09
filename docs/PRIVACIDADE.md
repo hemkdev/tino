@@ -1,6 +1,6 @@
 # Política de Privacidade — Tino
 
-**Última atualização:** 5 de novembro de 2026
+**Última atualização:** 8 de novembro de 2026
 
 O Tino é um bot de Discord de código aberto, mantido por
 [hemkdev](https://github.com/hemkdev) como projeto pessoal. Esta política
@@ -34,11 +34,11 @@ Nada além disso.
 
 ## Onde os dados ficam
 
-Num arquivo SQLite, em uma máquina operada pelo mantenedor do projeto. **Não há
+Num banco Postgres, em uma máquina operada pelo mantenedor do projeto. **Não há
 serviço em nuvem, banco gerenciado nem terceiros envolvidos.**
 
 Isso tem uma consequência que você deve conhecer antes de usar: quem opera a
-máquina tem acesso técnico a esse arquivo. O bot não expõe os dados de uma
+máquina tem acesso técnico a esse banco. O bot não expõe os dados de uma
 pessoa para outra, e não há intenção nem prática de leitura desse conteúdo — mas
 seria desonesto afirmar que isso é tecnicamente impossível. Se essa condição não
 te agrada, você pode rodar sua própria instância: o código está inteiro no
