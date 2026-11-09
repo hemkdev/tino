@@ -24,7 +24,7 @@ docker compose exec -T db pg_dump -U tino -d tino | gzip | age -r "$AGE_RECIPIEN
 # O R2 fala a API do S3. O aws-cli roda num container para não instalar nada na VM; as
 # credenciais passam pelo ambiente, sem aparecer na linha de comando.
 export AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
-docker run --rm -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION=auto \
+docker run --rm -q -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION=auto \
   -v "$PWD/backups:/backups:ro" docker.io/amazon/aws-cli:2.17.0 \
   s3 cp "/$arquivo" "s3://$R2_BUCKET/$chave" --endpoint-url "$R2_ENDPOINT" --only-show-errors
 
