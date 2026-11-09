@@ -8,12 +8,11 @@ COPY src src
 RUN mvn -B -q package -DskipTests
 
 FROM docker.io/library/eclipse-temurin:25-jre
-RUN useradd --system --create-home tino && install -d -o tino /dados
+RUN useradd --system --create-home tino
 USER tino
 WORKDIR /home/tino
 COPY --from=build /build/target/tino.jar tino.jar
-# O banco fica num volume: sobrevive a deploy e dá para copiar antes de atualizar.
-ENV BANCO_CAMINHO=/dados/tino.db
-VOLUME /dados
-# DISCORD_TOKEN vem do ambiente (o .env da VM), nunca da imagem.
-ENTRYPOINT ["java", "--enable-native-access=ALL-UNNAMED", "-jar", "tino.jar"]
+# O banco é um Postgres à parte. DATABASE_URL, DATABASE_USER, DATABASE_PASSWORD e
+# DISCORD_TOKEN vêm do ambiente (o .env da VM), nunca da imagem.
+# `docker run ... migrar` aplica as migrations e sai.
+ENTRYPOINT ["java", "-jar", "tino.jar"]
