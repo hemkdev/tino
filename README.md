@@ -30,10 +30,17 @@ próximos canais sobre a mesma conta.
 ```
 
 Na DM, sem barra e sem formulário. Também vale perguntar: **quanto gastei esse mês?**, **extrato
-de hoje**. O que ele não entende recebe o jeito certo de escrever, nunca silêncio, e o status
-"Me manda: 50 mercado" ao lado do nome mostra que ele está no ar. Cada lançamento mostra o acumulado da categoria no mês, com botões para desfazer e
-editar, e o `/resumo` traz as categorias em barras, a variação sobre o período anterior e a
-projeção do mês.
+de hoje**. O que ele não entende recebe o jeito certo de escrever, nunca silêncio. Cada
+lançamento mostra o acumulado da categoria no mês, com botões para desfazer e editar, e o
+`/resumo` traz as categorias em barras, a variação sobre o período anterior e a projeção do mês.
+
+Na DM, o Tino pode aparecer offline mesmo no ar: o Discord só mostra a presença de um bot (o
+online e o "Me manda: 50 mercado") para quem divide um servidor com ele. Para saber se ele está
+respondendo, basta mandar uma mensagem.
+
+| Anota | Pergunta antes | Resume |
+|:---:|:---:|:---:|
+| <img src="docs/prints/lancamento.png" width="280" alt="Na DM, 50 mercado vira um registro de R$ 50,00 com o acumulado do mês e os botões Desfazer e Editar"> | <img src="docs/prints/alerta.png" width="280" alt="5000 mercado, com normal de 50, recebe a pergunta R$ 5.000 em mercado? com os botões Tá certo e Corrigir"> | <img src="docs/prints/resumo.png" width="240" alt="O /resumo do mês, com gastos e ganhos por categoria em barras, o saldo e a projeção até o fim do mês"> |
 
 ## Os estados
 
