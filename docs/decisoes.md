@@ -26,8 +26,8 @@ precisaria copiar, é núcleo.
 ## 3. Um processo, uma conexão, um lock
 
 Discord, site e MCP rodam no mesmo processo e compartilham a instância de `Tino`. Ela tem uma
-conexão só, e os métodos são `synchronized`. Um app pessoal não tem concorrência que justifique
-pool; se tiver, a troca é por HikariCP sem mexer na API.
+conexão só, e os métodos são `synchronized`. O bot é público, mas o volume de um bot pequeno não
+tem concorrência que justifique pool; se tiver, a troca é por HikariCP sem mexer na API.
 
 ## 4. Conta própria, várias identidades
 
@@ -88,6 +88,18 @@ Continua uma conexão só (§3). Quando ela cai (SQLState classe `08`, ou `isVal
 avisa a pessoa que está instável, sai com código 1 e o Docker religa com uma conexão nova. Os
 outros erros seguem no "Algo deu errado" com código. Reconexão interna seria código a manter
 para um caso que o restart já resolve.
+
+## 10. Como a IA entra no desenvolvimento
+
+O código é escrito com o Claude Code, e todo commit feito assim leva o trailer `Co-Authored-By`.
+A divisão é esta: as decisões de produto e de desenho são do mantenedor, e a IA propõe, explica
+as opções e escreve o código combinado. Funcionalidade nova começa por uma spec com critérios de
+aceite, aprovada antes do código; as decisões de cada spec ficam registradas nas issues (#11,
+#13, #14). Cada commit é mostrado em diff antes de entrar, os critérios de aceite viram testes, e
+o teste manual no Discord é feito pelo mantenedor e registrado no PR.
+
+Até o #5, os commits iam direto na `main`; desde então, tudo entra por PR com squash, e desde o
+#12 com lint, testes e build obrigatórios.
 
 ## Recusado
 

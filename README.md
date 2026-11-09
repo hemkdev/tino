@@ -138,18 +138,19 @@ docs/
 ## Limitações
 
 - **Só Discord por enquanto.** O núcleo já é independente, mas site, Telegram e MCP ainda não existem.
-- **Ainda não roda numa VPS.** O bot só responde enquanto o processo estiver de pé.
-- **Feito para uso pessoal.** Um processo, uma conexão e um lock. Se um dia houver concorrência
-  de verdade, a troca é por um pool, sem mexer na API.
+- **Ainda não roda numa VM.** O bot só responde enquanto o processo estiver de pé.
+- **Um processo, uma conexão e um lock.** O bot é público, mas pequeno: se um dia houver
+  concorrência de verdade, a troca é por um pool, sem mexer na API.
 
 ## Roadmap
 
 - [x] Núcleo separado do Discord, com a fronteira garantida pelo compilador
 - [x] Personagem nas respostas e alerta que pergunta antes de gravar
 - [x] Regras no núcleo: pendentes que sobrevivem a reinício, relógio e fuso únicos
+- [x] Postgres com migrations versionadas, testado contra o banco de verdade
 - [ ] Traços do personagem: planta, ausência, impulso, vigiar categoria
 - [ ] Site e conector MCP sobre a mesma conta
-- [ ] No ar numa VPS
+- [ ] No ar numa VM, com deploy por release, backup e alerta de queda
 
 ## Créditos
 
