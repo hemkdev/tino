@@ -153,6 +153,8 @@ public class Bot extends ListenerAdapter {
                 Commands.slash("remover", "Apaga um lançamento").addOptions(
                         new OptionData(OptionType.INTEGER, "id", "Número mostrado em /lancamentos", true)),
 
+                Commands.slash("apagar-tudo", "Apaga todos os seus dados e a sua conta, com confirmação"),
+
                 Commands.slash("ajuda", "Como usar o bot"),
                 Commands.slash("help", "Como usar o bot"),
 
@@ -202,6 +204,12 @@ public class Bot extends ListenerAdapter {
 
             if (evento.getName().equals("exportar")) {
                 exportar(evento, usuario);
+                return;
+            }
+            if (evento.getName().equals("apagar-tudo")) {
+                // Sem preparar: quem chega do zero não ganha categorias só para vê-las apagadas.
+                responder(evento, new Resposta(
+                        Visual.avisoApagar(tino.inventario(usuario)), Visual.botoesApagar(usuario)));
                 return;
             }
 
@@ -371,6 +379,12 @@ public class Bot extends ListenerAdapter {
                         evento.editMessageEmbeds(Visual.ok("Não anotei. Manda de novo com o valor certo."))
                                 .setComponents().queue();
                     }
+                }
+                case "apagar" -> {
+                    MessageEmbed embed = partes[2].equals("sim")
+                            ? Visual.apagado(tino.apagarTudo(partes[1]))
+                            : Visual.ok("Nada foi apagado.");
+                    evento.editMessageEmbeds(embed).setComponents().queue();
                 }
                 case "pag" -> {
                     Resposta r = pagina(partes[1], Escala.de(partes[2]), Integer.parseInt(partes[3]));

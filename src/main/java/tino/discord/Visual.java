@@ -452,7 +452,8 @@ final class Visual {
                                 Tino.VEZES_O_NORMAL, Tino.DIAS_DO_NORMAL, Tino.HORAS_PARA_RESPONDER), false)
                 .addField("Corrigir",
                         "Botão **Desfazer** e **Editar** logo abaixo de cada registro\n"
-                                + "`/remover 12` apaga pelo id", false)
+                                + "`/remover 12` apaga pelo id\n"
+                                + "`/apagar-tudo` — apaga seus dados e a conta", false)
                 .addField("Formatos aceitos",
                         "Valor: `50` · `50,00` · `1.234,56` · `R$ 50`\n"
                                 + "Data: `DD/MM` ou `AAAA-MM-DD` (padrão: hoje)", false)
@@ -462,15 +463,39 @@ final class Visual {
     // -------------------------------------------------------- apagar tudo
 
     static MessageEmbed avisoApagar(Tino.Inventario i) {
-        throw new UnsupportedOperationException("TODO: apagar-tudo");
+        return new EmbedBuilder()
+                .setColor(VERMELHO)
+                .setThumbnail(Estado.ALERTA.url())
+                .setTitle("Apagar tudo?")
+                .setDescription(("Vou apagar %s e a sua conta. Não tem volta.\n\n"
+                        + "Quer guardar uma cópia antes? Use `/exportar`.").formatted(conteudo(i)))
+                .build();
     }
 
     static ActionRow botoesApagar(String usuario) {
-        throw new UnsupportedOperationException("TODO: apagar-tudo");
+        return ActionRow.of(
+                Button.danger("apagar:%s:sim".formatted(usuario), "Apagar tudo"),
+                Button.secondary("apagar:%s:nao".formatted(usuario), "Cancelar"));
     }
 
     static MessageEmbed apagado(Tino.Inventario i) {
-        throw new UnsupportedOperationException("TODO: apagar-tudo");
+        return new EmbedBuilder()
+                .setColor(CINZA)
+                .setDescription(("Apaguei %s e a sua conta.\n\n"
+                        + "As cópias de segurança, criptografadas, guardam esses dados por até "
+                        + "30 dias, até expirarem. Se voltar, começamos do zero.").formatted(conteudo(i)))
+                .build();
+    }
+
+    private static String conteudo(Tino.Inventario i) {
+        return "%s, %s e %s".formatted(
+                quantos(i.lancamentos(), "lançamento", "lançamentos"),
+                quantos(i.fixos(), "fixo", "fixos"),
+                quantos(i.categorias(), "categoria", "categorias"));
+    }
+
+    private static String quantos(int n, String um, String varios) {
+        return "**%d %s**".formatted(n, n == 1 ? um : varios);
     }
 
     // ------------------------------------------------------------- avulsos

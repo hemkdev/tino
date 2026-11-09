@@ -432,11 +432,19 @@ public final class Tino {
     // ------------------------------------------------------------------ conta
 
     public synchronized Inventario inventario(String usuario) throws SQLException {
-        throw new UnsupportedOperationException("TODO: apagar-tudo");
+        return Financas.inventario(conexao, usuario);
     }
 
+    /**
+     * Apaga a conta inteira, até a identidade: quem voltar chega do zero. Devolve o que foi
+     * apagado, que pode ser mais do que o aviso mostrou se a pessoa lançou algo no meio.
+     */
     public synchronized Inventario apagarTudo(String usuario) throws SQLException {
-        throw new UnsupportedOperationException("TODO: apagar-tudo");
+        return emTransacao(() -> {
+            Inventario apagado = Financas.inventario(conexao, usuario);
+            Financas.apagarConta(conexao, usuario);
+            return apagado;
+        });
     }
 
     // ------------------------------------------------------------------ fixos
