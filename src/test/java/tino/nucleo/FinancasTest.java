@@ -5,7 +5,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
@@ -17,7 +16,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Banco em memória: abre em milissegundos, some ao fechar. */
 class FinancasTest {
 
     private static final String EU = "111";
@@ -28,8 +26,7 @@ class FinancasTest {
 
     @BeforeEach
     void abrir() throws SQLException {
-        c = DriverManager.getConnection("jdbc:sqlite::memory:");
-        Financas.criarTabelas(c);
+        c = BancoDeTeste.limpo();
         Financas.prepararUsuario(c, EU);
         Financas.prepararUsuario(c, OUTRO);
     }
@@ -157,18 +154,6 @@ class FinancasTest {
         List<String> nomes = Financas.caminhos(c, EU, GASTO, "", 200);
         assertTrue(nomes.contains("Bem Estar"));
         assertTrue(nomes.contains("Cartão de Crédito"));
-    }
-
-    @Test
-    void normalizaCategoriasGravadasAntes() throws SQLException {
-        try (java.sql.Statement s = c.createStatement()) {
-            s.execute("INSERT INTO categoria (usuario, pai_id, tipo, nome) "
-                    + "VALUES ('" + EU + "', NULL, 'gasto', 'mercado antigo')");
-        }
-
-        Financas.normalizarCategorias(c);
-
-        assertTrue(Financas.caminhos(c, EU, GASTO, "", 200).contains("Mercado Antigo"));
     }
 
     @Test
@@ -548,19 +533,5 @@ class FinancasTest {
 
         assertThrows(IllegalArgumentException.class,
                 () -> Financas.vincular(c, minha, "google", "outro@exemplo.com"));
-    }
-
-    @Test
-    void migracaoMoveDadosDoIdDoDiscordParaConta() throws SQLException {
-        // EU e OUTRO foram gravados como antes: usuario = id do Discord
-        gasto(EU, "50", "Lazer", HOJE);
-
-        Financas.migrarParaContas(c);
-        Financas.migrarParaContas(c);   // idempotente
-
-        String conta = Financas.conta(c, "discord", EU);
-        assertEquals(5_000, resumoDoMes(conta).despesas());
-        assertEquals(0, resumoDoMes(EU).despesas());
-        assertFalse(conta.equals(Financas.conta(c, "discord", OUTRO)));
     }
 }

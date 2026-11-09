@@ -1,13 +1,10 @@
 package tino.nucleo;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import org.junit.jupiter.api.io.TempDir;
-
-import java.nio.file.Path;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Duration;
@@ -47,11 +44,15 @@ class TinoTest {
 
     @BeforeEach
     void abrir() throws SQLException {
-        conexao = DriverManager.getConnection("jdbc:sqlite::memory:");
-        Financas.criarTabelas(conexao);
+        conexao = BancoDeTeste.limpo();
         tino = new Tino(conexao, MEIO_DIA);
         tino.preparar(EU);
         tino.preparar(OUTRO);
+    }
+
+    @AfterEach
+    void fechar() throws SQLException {
+        conexao.close();
     }
 
     @Test
@@ -359,8 +360,20 @@ class TinoTest {
     }
 
     @Test
-    void abrirUsaOFusoDeSaoPaulo(@TempDir Path pasta) throws SQLException {
-        assertEquals(SP, Tino.abrir(pasta.resolve("tino.db").toString()).fuso());
+    void abrirUsaOFusoDeSaoPaulo() throws SQLException {
+        assertEquals(SP, abrir(MEIO_DIA).fuso());
+    }
+
+    @Test
+    void bootRecusaEsquemaAtrasado() throws SQLException {
+        BancoDeTeste.semEsquema();
+
+        IllegalStateException e = assertThrows(IllegalStateException.class, () -> abrir(MEIO_DIA));
+        assertTrue(e.getMessage().contains("migrar"));
+    }
+
+    private static Tino abrir(Clock relogio) throws SQLException {
+        return Tino.abrir(BancoDeTeste.URL, BancoDeTeste.USUARIO, BancoDeTeste.SENHA, relogio);
     }
 
     @Test
@@ -381,14 +394,14 @@ class TinoTest {
 
     private int contarPendentes() throws SQLException {
         try (var rs = conexao.createStatement().executeQuery("SELECT COUNT(*) FROM pendente")) {
+            rs.next();
             return rs.getInt(1);
         }
     }
 
     @Test
-    void pendenteSobreviveAReabrir(@TempDir Path pasta) throws SQLException {
-        String caminho = pasta.resolve("tino.db").toString();
-        Tino antes = Tino.abrir(caminho, MEIO_DIA);
+    void pendenteSobreviveAReabrir() throws SQLException {
+        Tino antes = abrir(MEIO_DIA);
         antes.preparar(EU);
         for (int i = 0; i < 3; i++) {
             antes.lancar(EU, new Pedido(-5_000, "Mercado", null, HOJE));
@@ -396,7 +409,7 @@ class TinoTest {
         String chave = assertInstanceOf(Evento.ForaDoNormal.class,
                 antes.lancar(EU, new Pedido(-500_000, "Mercado", null, HOJE))).chave();
 
-        assertTrue(Tino.abrir(caminho, MEIO_DIA).confirmar(EU, chave).isPresent());
+        assertTrue(abrir(MEIO_DIA).confirmar(EU, chave).isPresent());
     }
 
     // ------------------------------------------------------------ pedido válido

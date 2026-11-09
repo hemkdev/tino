@@ -37,6 +37,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 
@@ -51,14 +52,27 @@ public class Bot extends ListenerAdapter {
         this.tino = tino;
     }
 
+    /** {@code java -jar tino.jar} sobe o bot; {@code java -jar tino.jar migrar} só aplica as migrations. */
     public static void main(String[] args) throws Exception {
-        String token = System.getenv("DISCORD_TOKEN");
-        if (token == null || token.isBlank()) {
-            System.err.println("defina DISCORD_TOKEN");
+        String token;
+        Tino tino;
+        try {
+            Map<String, String> env = System.getenv();
+            String url = exigir(env, "DATABASE_URL");
+            String usuario = exigir(env, "DATABASE_USER");
+            String senha = exigir(env, "DATABASE_PASSWORD");
+            if (args.length > 0 && args[0].equals("migrar")) {
+                Tino.migrar(url, usuario, senha);
+                LOG.info("migrations aplicadas");
+                return;
+            }
+            token = exigir(env, "DISCORD_TOKEN");
+            tino = Tino.abrir(url, usuario, senha);
+        } catch (IllegalStateException e) {
+            System.err.println(e.getMessage());
             System.exit(1);
+            return;
         }
-
-        Tino tino = Tino.abrir(System.getenv().getOrDefault("BANCO_CAMINHO", "tino.db"));
 
         // DIRECT_MESSAGES não é privilegiada, e em DM o conteúdo da mensagem vem
         // preenchido sem precisar da intent de conteúdo.
@@ -70,6 +84,14 @@ public class Bot extends ListenerAdapter {
                 .awaitReady();
         registrarComandos(jda);
         LOG.info("bot no ar");
+    }
+
+    static String exigir(Map<String, String> env, String nome) {
+        String valor = env.get(nome);
+        if (valor == null || valor.isBlank()) {
+            throw new IllegalStateException("defina " + nome);
+        }
+        return valor;
     }
 
     private static void registrarComandos(JDA jda) {

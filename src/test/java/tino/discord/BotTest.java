@@ -4,11 +4,21 @@ import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BotTest {
+
+    @Test
+    void semUrlDoBancoSaiComMensagem() {
+        IllegalStateException e = assertThrows(IllegalStateException.class,
+                () -> Bot.exigir(Map.of("DATABASE_USER", "tino"), "DATABASE_URL"));
+
+        assertEquals("defina DATABASE_URL", e.getMessage());
+    }
 
     @Test
     void mensagemSemSentidoRecebeNaoEntendi() {

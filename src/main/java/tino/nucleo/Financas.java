@@ -5,9 +5,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -30,59 +32,6 @@ final class Financas {
 
     private Financas() {}
 
-    // ------------------------------------------------------------- estrutura
-
-    static void criarTabelas(Connection c) throws SQLException {
-        try (Statement s = c.createStatement()) {
-            s.execute("""
-                    CREATE TABLE IF NOT EXISTS categoria (
-                        id      INTEGER PRIMARY KEY,
-                        usuario TEXT    NOT NULL,
-                        pai_id  INTEGER REFERENCES categoria(id),
-                        tipo    TEXT    NOT NULL,
-                        nome    TEXT    NOT NULL
-                    )""");
-            s.execute("""
-                    CREATE TABLE IF NOT EXISTS lancamento (
-                        id             INTEGER PRIMARY KEY,
-                        usuario        TEXT    NOT NULL,
-                        valor_centavos INTEGER NOT NULL,
-                        categoria_id   INTEGER NOT NULL REFERENCES categoria(id),
-                        descricao      TEXT,
-                        data           TEXT    NOT NULL
-                    )""");
-            s.execute("""
-                    CREATE TABLE IF NOT EXISTS recorrente (
-                        id             INTEGER PRIMARY KEY,
-                        usuario        TEXT    NOT NULL,
-                        valor_centavos INTEGER NOT NULL,
-                        categoria_id   INTEGER NOT NULL REFERENCES categoria(id),
-                        descricao      TEXT
-                    )""");
-            s.execute("CREATE INDEX IF NOT EXISTS idx_consulta ON lancamento (usuario, data)");
-            // A coluna usuario guarda o id da conta. Cada canal (Discord, Google, Telegram)
-            // é uma identidade que aponta para ela, então uma conta tem várias entradas.
-            s.execute("CREATE TABLE IF NOT EXISTS conta (id INTEGER PRIMARY KEY)");
-            s.execute("""
-                    CREATE TABLE IF NOT EXISTS identidade (
-                        provedor TEXT    NOT NULL,
-                        externo  TEXT    NOT NULL,
-                        conta_id INTEGER NOT NULL REFERENCES conta(id),
-                        PRIMARY KEY (provedor, externo)
-                    )""");
-            s.execute("""
-                    CREATE TABLE IF NOT EXISTS pendente (
-                        chave          TEXT    PRIMARY KEY,
-                        usuario        TEXT    NOT NULL,
-                        valor_centavos INTEGER NOT NULL,
-                        categoria      TEXT,
-                        descricao      TEXT,
-                        data           TEXT    NOT NULL,
-                        criado_em      TEXT    NOT NULL
-                    )""");
-        }
-    }
-
     /**
      * Cria as categorias iniciais na primeira vez que o usuário aparece.
      * São dele, e não do sistema, justamente para que possa renomear e excluir.
@@ -92,7 +41,7 @@ final class Financas {
     static boolean prepararUsuario(Connection c, String usuario) throws SQLException {
         try (PreparedStatement ps = c.prepareStatement(
                 "SELECT COUNT(*) FROM categoria WHERE usuario = ?")) {
-            ps.setString(1, usuario);
+            ps.setLong(1, dono(usuario));
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next() && rs.getInt(1) > 0) {
                     return false;
@@ -102,13 +51,13 @@ final class Financas {
         try (PreparedStatement ps = c.prepareStatement(
                 "INSERT INTO categoria (usuario, pai_id, tipo, nome) VALUES (?, NULL, ?, ?)")) {
             for (String nome : PADRAO_GASTO) {
-                ps.setString(1, usuario);
+                ps.setLong(1, dono(usuario));
                 ps.setString(2, GASTO);
                 ps.setString(3, nome);
                 ps.addBatch();
             }
             for (String nome : PADRAO_GANHO) {
-                ps.setString(1, usuario);
+                ps.setLong(1, dono(usuario));
                 ps.setString(2, GANHO);
                 ps.setString(3, nome);
                 ps.addBatch();
@@ -120,6 +69,11 @@ final class Financas {
 
     // ---------------------------------------------------------------- contas
 
+    /** O núcleo trata a conta como texto; no banco, {@code usuario} é a chave de {@code conta}. */
+    private static long dono(String usuario) {
+        return Long.parseLong(usuario);
+    }
+
     /** Conta dona desta identidade, criada no primeiro contato. Devolve o id usado em {@code usuario}. */
     static String conta(Connection c, String provedor, String externo) throws SQLException {
         Optional<String> existente = contaDa(c, provedor, externo);
@@ -127,12 +81,10 @@ final class Financas {
             return existente.get();
         }
         long id;
-        try (Statement s = c.createStatement()) {
-            s.execute("INSERT INTO conta DEFAULT VALUES");
-            try (ResultSet rs = s.executeQuery("SELECT last_insert_rowid()")) {
-                rs.next();
-                id = rs.getLong(1);
-            }
+        try (Statement s = c.createStatement();
+             ResultSet rs = s.executeQuery("INSERT INTO conta DEFAULT VALUES RETURNING id")) {
+            rs.next();
+            id = rs.getLong(1);
         }
         inserirIdentidade(c, provedor, externo, id);
         return String.valueOf(id);
@@ -174,48 +126,6 @@ final class Financas {
         }
     }
 
-    /**
-     * Antes das contas, {@code usuario} guardava o id do Discord. Roda no boot e troca
-     * cada um pela conta correspondente. Idempotente: id de conta é pequeno, snowflake
-     * do Discord tem 17+ dígitos, então o que já é conta não volta a ser migrado.
-     */
-    static void migrarParaContas(Connection c) throws SQLException {
-        List<String> antigos = new ArrayList<>();
-        try (Statement s = c.createStatement();
-             ResultSet rs = s.executeQuery("""
-                     SELECT usuario FROM categoria
-                     UNION SELECT usuario FROM lancamento
-                     UNION SELECT usuario FROM recorrente
-                     EXCEPT SELECT CAST(id AS TEXT) FROM conta""")) {
-            while (rs.next()) {
-                antigos.add(rs.getString(1));
-            }
-        }
-        if (antigos.isEmpty()) {
-            return;
-        }
-        c.setAutoCommit(false);
-        try {
-            for (String discord : antigos) {
-                String conta = conta(c, "discord", discord);
-                for (String tabela : List.of("categoria", "lancamento", "recorrente")) {
-                    try (PreparedStatement ps = c.prepareStatement(
-                            "UPDATE " + tabela + " SET usuario = ? WHERE usuario = ?")) {
-                        ps.setString(1, conta);
-                        ps.setString(2, discord);
-                        ps.executeUpdate();
-                    }
-                }
-            }
-            c.commit();
-        } catch (SQLException e) {
-            c.rollback();
-            throw e;
-        } finally {
-            c.setAutoCommit(true);
-        }
-    }
-
     // ------------------------------------------------------------ categorias
 
     /**
@@ -252,52 +162,20 @@ final class Financas {
         return partes;
     }
 
-    /**
-     * Deixa as categorias já gravadas na forma canônica. Roda no boot; sem isso,
-     * quem usou o bot antes da normalização veria "mercado" e "Mercado" na lista.
-     */
-    static void normalizarCategorias(Connection c) throws SQLException {
-        record Ajuste(long id, String nome) {}
-        List<Ajuste> ajustes = new ArrayList<>();
-
-        try (Statement s = c.createStatement();
-             ResultSet rs = s.executeQuery("SELECT id, nome FROM categoria")) {
-            while (rs.next()) {
-                String canonico = Entrada.capitalizar(rs.getString(2));
-                if (!canonico.equals(rs.getString(2))) {
-                    ajustes.add(new Ajuste(rs.getLong(1), canonico));
-                }
-            }
-        }
-        if (ajustes.isEmpty()) {
-            return;
-        }
-        try (PreparedStatement ps = c.prepareStatement(
-                "UPDATE categoria SET nome = ? WHERE id = ?")) {
-            for (Ajuste a : ajustes) {
-                ps.setString(1, a.nome());
-                ps.setLong(2, a.id());
-                ps.addBatch();
-            }
-            ps.executeBatch();
-        }
-    }
-
     // Os nomes são gravados já normalizados, então a comparação bate exata.
-    // O COLLATE NOCASE fica como rede para linhas gravadas antes disso.
     private static Long buscar(Connection c, String usuario, String nome, Long pai, String tipo)
             throws SQLException {
         String sql = """
                 SELECT id FROM categoria
-                 WHERE usuario = ? AND tipo = ? AND nome = ? COLLATE NOCASE
+                 WHERE usuario = ? AND tipo = ? AND nome = ?
                    AND ((? IS NULL AND pai_id IS NULL) OR pai_id = ?)
                  LIMIT 1""";
         try (PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setString(1, usuario);
+            ps.setLong(1, dono(usuario));
             ps.setString(2, tipo);
             ps.setString(3, nome);
-            ps.setObject(4, pai);
-            ps.setObject(5, pai);
+            ps.setObject(4, pai, Types.BIGINT);
+            ps.setObject(5, pai, Types.BIGINT);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? rs.getLong(1) : null;
             }
@@ -327,8 +205,8 @@ final class Financas {
         try (PreparedStatement ps = c.prepareStatement(
                 "INSERT INTO categoria (usuario, pai_id, tipo, nome) VALUES (?,?,?,?)",
                 Statement.RETURN_GENERATED_KEYS)) {
-            ps.setString(1, usuario);
-            ps.setObject(2, pai);
+            ps.setLong(1, dono(usuario));
+            ps.setObject(2, pai, Types.BIGINT);
             ps.setString(3, tipo);
             ps.setString(4, nome);
             ps.executeUpdate();
@@ -343,7 +221,7 @@ final class Financas {
         String sql = "SELECT COUNT(*) FROM categoria WHERE usuario = ? AND tipo = ? AND pai_id IS "
                 + (raiz ? "NULL" : "NOT NULL");
         try (PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setString(1, usuario);
+            ps.setLong(1, dono(usuario));
             ps.setString(2, tipo);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? rs.getInt(1) : 0;
@@ -360,11 +238,11 @@ final class Financas {
                            c.usuario AS dono, c.tipo AS t
                       FROM categoria c LEFT JOIN categoria p ON p.id = c.pai_id
                 )
-                 WHERE dono = ? AND (? IS NULL OR t = ?) AND caminho LIKE ?
+                 WHERE dono = ? AND (? IS NULL OR t = ?) AND caminho ILIKE ?
                  ORDER BY caminho LIMIT ?""";
         List<String> nomes = new ArrayList<>();
         try (PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setString(1, usuario);
+            ps.setLong(1, dono(usuario));
             ps.setString(2, tipo);
             ps.setString(3, tipo);
             ps.setString(4, "%" + (filtro == null ? "" : filtro) + "%");
@@ -436,7 +314,7 @@ final class Financas {
                  WHERE usuario = ?
                    AND (categoria_id = ?
                         OR categoria_id IN (SELECT id FROM categoria WHERE pai_id = ?))""")) {
-            ps.setString(1, usuario);
+            ps.setLong(1, dono(usuario));
             ps.setLong(2, id);
             ps.setLong(3, id);
             try (ResultSet rs = ps.executeQuery()) {
@@ -452,7 +330,7 @@ final class Financas {
 
         try (PreparedStatement ps = c.prepareStatement(
                 "DELETE FROM categoria WHERE usuario = ? AND (id = ? OR pai_id = ?)")) {
-            ps.setString(1, usuario);
+            ps.setLong(1, dono(usuario));
             ps.setLong(2, id);
             ps.setLong(3, id);
             ps.executeUpdate();
@@ -470,11 +348,11 @@ final class Financas {
         try (PreparedStatement ps = c.prepareStatement("""
                 INSERT INTO lancamento (usuario, valor_centavos, categoria_id, descricao, data)
                 VALUES (?,?,?,?,?)""", Statement.RETURN_GENERATED_KEYS)) {
-            ps.setString(1, usuario);
+            ps.setLong(1, dono(usuario));
             ps.setLong(2, centavos);
             ps.setLong(3, categoriaId);
             ps.setString(4, descricao);
-            ps.setString(5, data.toString());
+            ps.setObject(5, data);
             ps.executeUpdate();
             try (ResultSet rs = ps.getGeneratedKeys()) {
                 rs.next();
@@ -492,10 +370,10 @@ final class Financas {
                   LEFT JOIN categoria p ON p.id = c.pai_id
                  WHERE l.id = ? AND l.usuario = ?""")) {
             ps.setLong(1, id);
-            ps.setString(2, usuario);
+            ps.setLong(2, dono(usuario));
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next()
-                        ? Optional.of(new Lancamento(rs.getLong(1), LocalDate.parse(rs.getString(2)),
+                        ? Optional.of(new Lancamento(rs.getLong(1), rs.getObject(2, LocalDate.class),
                                 rs.getLong(3), rs.getString(4), rs.getString(5)))
                         : Optional.empty();
             }
@@ -514,9 +392,9 @@ final class Financas {
             ps.setLong(1, centavos);
             ps.setLong(2, categoriaId);
             ps.setString(3, descricao);
-            ps.setString(4, data.toString());
+            ps.setObject(4, data);
             ps.setLong(5, id);
-            ps.setString(6, usuario);
+            ps.setLong(6, dono(usuario));
             return ps.executeUpdate() > 0;
         }
     }
@@ -525,7 +403,7 @@ final class Financas {
         try (PreparedStatement ps = c.prepareStatement(
                 "DELETE FROM lancamento WHERE id = ? AND usuario = ?")) {
             ps.setLong(1, id);
-            ps.setString(2, usuario);
+            ps.setLong(2, dono(usuario));
             return ps.executeUpdate() > 0;
         }
     }
@@ -542,14 +420,14 @@ final class Financas {
                  WHERE l.usuario = ? AND l.data BETWEEN ? AND ?
                  ORDER BY l.data DESC, l.id DESC
                  LIMIT ? OFFSET ?""")) {
-            ps.setString(1, usuario);
-            ps.setString(2, p.inicio().toString());
-            ps.setString(3, p.fim().toString());
+            ps.setLong(1, dono(usuario));
+            ps.setObject(2, p.inicio());
+            ps.setObject(3, p.fim());
             ps.setInt(4, limite);
             ps.setInt(5, offset);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    lista.add(new Lancamento(rs.getLong(1), LocalDate.parse(rs.getString(2)),
+                    lista.add(new Lancamento(rs.getLong(1), rs.getObject(2, LocalDate.class),
                             rs.getLong(3), rs.getString(4), rs.getString(5)));
                 }
             }
@@ -565,7 +443,7 @@ final class Financas {
         try (PreparedStatement ps = c.prepareStatement("""
                 INSERT INTO recorrente (usuario, valor_centavos, categoria_id, descricao)
                 VALUES (?,?,?,?)""", Statement.RETURN_GENERATED_KEYS)) {
-            ps.setString(1, usuario);
+            ps.setLong(1, dono(usuario));
             ps.setLong(2, centavos);
             ps.setLong(3, categoriaId);
             ps.setString(4, descricao);
@@ -587,7 +465,7 @@ final class Financas {
                   LEFT JOIN categoria p ON p.id = c.pai_id
                  WHERE r.usuario = ?
                  ORDER BY r.id""")) {
-            ps.setString(1, usuario);
+            ps.setLong(1, dono(usuario));
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     lista.add(new Recorrente(rs.getLong(1), rs.getLong(2),
@@ -602,7 +480,7 @@ final class Financas {
         try (PreparedStatement ps = c.prepareStatement(
                 "DELETE FROM recorrente WHERE id = ? AND usuario = ?")) {
             ps.setLong(1, id);
-            ps.setString(2, usuario);
+            ps.setLong(2, dono(usuario));
             return ps.executeUpdate() > 0;
         }
     }
@@ -614,8 +492,8 @@ final class Financas {
                 INSERT INTO lancamento (usuario, valor_centavos, categoria_id, descricao, data)
                 SELECT usuario, valor_centavos, categoria_id, descricao, ?
                   FROM recorrente WHERE usuario = ?""")) {
-            ps.setString(1, data.toString());
-            ps.setString(2, usuario);
+            ps.setObject(1, data);
+            ps.setLong(2, dono(usuario));
             total = ps.executeUpdate();
         }
         return total;
@@ -632,9 +510,9 @@ final class Financas {
                        COALESCE(SUM(CASE WHEN valor_centavos < 0 THEN -valor_centavos END), 0)
                   FROM lancamento
                  WHERE usuario = ? AND data BETWEEN ? AND ?""")) {
-            ps.setString(1, usuario);
-            ps.setString(2, p.inicio().toString());
-            ps.setString(3, p.fim().toString());
+            ps.setLong(1, dono(usuario));
+            ps.setObject(2, p.inicio());
+            ps.setObject(3, p.fim());
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     ganhos = rs.getLong(1);
@@ -662,9 +540,9 @@ final class Financas {
 
         List<Linha> linhas = new ArrayList<>();
         try (PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setString(1, usuario);
-            ps.setString(2, p.inicio().toString());
-            ps.setString(3, p.fim().toString());
+            ps.setLong(1, dono(usuario));
+            ps.setObject(2, p.inicio());
+            ps.setObject(3, p.fim());
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     linhas.add(new Linha(rs.getString(1), rs.getLong(2)));
@@ -685,9 +563,9 @@ final class Financas {
                        (SELECT COALESCE(pai_id, id) FROM categoria WHERE id = ?)"""
                 .formatted(ganho ? "l.valor_centavos" : "-l.valor_centavos", ganho ? ">" : "<");
         try (PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setString(1, usuario);
-            ps.setString(2, p.inicio().toString());
-            ps.setString(3, p.fim().toString());
+            ps.setLong(1, dono(usuario));
+            ps.setObject(2, p.inicio());
+            ps.setObject(3, p.fim());
             ps.setLong(4, categoriaId);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? rs.getLong(1) : 0;
@@ -707,9 +585,9 @@ final class Financas {
                  WHERE l.usuario = ? AND l.data BETWEEN ? AND ?
                    AND COALESCE(c.pai_id, c.id) =
                        (SELECT COALESCE(pai_id, id) FROM categoria WHERE id = ?)""")) {
-            ps.setString(1, usuario);
-            ps.setString(2, hoje.minusDays(DIAS_DO_NORMAL).toString());
-            ps.setString(3, hoje.toString());
+            ps.setLong(1, dono(usuario));
+            ps.setObject(2, hoje.minusDays(DIAS_DO_NORMAL));
+            ps.setObject(3, hoje);
             ps.setLong(4, categoriaId);
             try (ResultSet rs = ps.executeQuery()) {
                 // Menos de 3 lançamentos não formam padrão — qualquer valor pareceria atípico.
@@ -726,12 +604,12 @@ final class Financas {
                 INSERT INTO pendente (chave, usuario, valor_centavos, categoria, descricao, data, criado_em)
                 VALUES (?,?,?,?,?,?,?)""")) {
             ps.setString(1, chave);
-            ps.setString(2, usuario);
+            ps.setLong(2, dono(usuario));
             ps.setLong(3, p.centavos());
             ps.setString(4, p.categoria());
             ps.setString(5, p.descricao());
-            ps.setString(6, p.data().toString());
-            ps.setString(7, instante(agora));
+            ps.setObject(6, p.data());
+            ps.setObject(7, agora.atOffset(ZoneOffset.UTC));
             ps.executeUpdate();
         }
     }
@@ -744,11 +622,11 @@ final class Financas {
                 SELECT valor_centavos, categoria, descricao, data, criado_em
                   FROM pendente WHERE chave = ? AND usuario = ?""")) {
             ps.setString(1, chave);
-            ps.setString(2, usuario);
+            ps.setLong(2, dono(usuario));
             try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next() && Instant.parse(rs.getString(5)).isAfter(limite)) {
+                if (rs.next() && rs.getObject(5, OffsetDateTime.class).toInstant().isAfter(limite)) {
                     pedido = Optional.of(new Pedido(rs.getLong(1), rs.getString(2), rs.getString(3),
-                            LocalDate.parse(rs.getString(4))));
+                            rs.getObject(4, LocalDate.class)));
                 }
             }
         }
@@ -760,21 +638,16 @@ final class Financas {
         try (PreparedStatement ps = c.prepareStatement(
                 "DELETE FROM pendente WHERE chave = ? AND usuario = ?")) {
             ps.setString(1, chave);
-            ps.setString(2, usuario);
+            ps.setLong(2, dono(usuario));
             return ps.executeUpdate() > 0;
         }
-    }
-
-    /** Truncado ao segundo, o ISO-8601 em UTC tem largura fixa: a ordem do texto é a do tempo. */
-    private static String instante(Instant i) {
-        return i.truncatedTo(ChronoUnit.SECONDS).toString();
     }
 
     static void expirarPendentes(Connection c, String usuario, Instant limite) throws SQLException {
         try (PreparedStatement ps = c.prepareStatement(
                 "DELETE FROM pendente WHERE usuario = ? AND criado_em <= ?")) {
-            ps.setString(1, usuario);
-            ps.setString(2, instante(limite));
+            ps.setLong(1, dono(usuario));
+            ps.setObject(2, limite.atOffset(ZoneOffset.UTC));
             ps.executeUpdate();
         }
     }
