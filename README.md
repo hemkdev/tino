@@ -38,6 +38,9 @@ Na DM, o Tino pode aparecer offline mesmo no ar: o Discord só mostra a presenç
 online e o "Me manda: 50 mercado") para quem divide um servidor com ele. Para saber se ele está
 respondendo, basta mandar uma mensagem.
 
+| Anota | Pergunta antes | Resume |
+|:---:|:---:|:---:|
+| <img src="docs/prints/lancamento.png" width="280" alt="Na DM, 50 mercado vira um registro de R$ 50,00 com o acumulado do mês e os botões Desfazer e Editar"> | <img src="docs/prints/alerta.png" width="280" alt="5000 mercado, com normal de 50, recebe a pergunta R$ 5.000 em mercado? com os botões Tá certo e Corrigir"> | <img src="docs/prints/resumo.png" width="240" alt="O /resumo do mês, com gastos e ganhos por categoria em barras, o saldo e a projeção até o fim do mês"> |
 
 ## Os estados
 
