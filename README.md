@@ -110,7 +110,8 @@ DISCORD_TOKEN="seu-token" java -jar target/tino.jar
 
 Sem alguma dessas variáveis, o bot sai dizendo qual falta. Com o esquema atrasado, não sobe e
 pede o `migrar`. `DISCORD_GUILD_ID` registra os comandos numa guild só, o que é imediato; sem ela
-o registro é global, necessário para a DM.
+o registro é global, necessário para a DM. `BATIMENTO_URL`, opcional, recebe um GET a cada 5 minutos
+enquanto o bot está conectado (um check do healthchecks.io, que avisa quando os pings param).
 
 Com Podman, o `docker compose` precisa do socket dele:
 `systemctl --user start podman.socket` e
