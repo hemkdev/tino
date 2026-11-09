@@ -48,6 +48,9 @@ public class Bot extends ListenerAdapter {
 
     private static final Logger LOG = LoggerFactory.getLogger(Bot.class);
 
+    /** O portão do deploy (.github/workflows/deploy.yml) espera este texto no log. Não mudar sozinho. */
+    static final String PRONTO = "bot no ar";
+
     private final Tino tino;
 
     private Bot(Tino tino) {
@@ -85,7 +88,9 @@ public class Bot extends ListenerAdapter {
                 .build()
                 .awaitReady();
         registrarComandos(jda);
-        LOG.info("bot no ar");
+        Batimento.de(System.getenv("BATIMENTO_URL"))
+                .ifPresent(b -> b.iniciar(() -> jda.getStatus() == JDA.Status.CONNECTED));
+        LOG.info(PRONTO);
     }
 
     static String exigir(Map<String, String> env, String nome) {
