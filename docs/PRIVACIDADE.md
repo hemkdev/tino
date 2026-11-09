@@ -34,8 +34,21 @@ Nada além disso.
 
 ## Onde os dados ficam
 
-Num banco Postgres, em uma máquina operada pelo mantenedor do projeto. **Não há
-serviço em nuvem, banco gerenciado nem terceiros envolvidos.**
+Num banco Postgres, numa máquina virtual na Oracle Cloud operada só pelo
+mantenedor do projeto. Não há banco gerenciado: o Postgres roda na própria
+máquina.
+
+Uma cópia de segurança do banco é feita todo dia e antes de cada atualização do
+bot. Ela é criptografada antes de sair da máquina e guardada no Cloudflare R2 (o
+armazenamento da Cloudflare). A chave que abre essas cópias fica só com o
+mantenedor, fora da máquina e fora da Cloudflare: quem guarda o arquivo não
+consegue ler o conteúdo. As cópias diárias são apagadas depois de 7 dias, e as
+de antes de uma atualização, depois de 30.
+
+A Oracle, que fornece a máquina, e a Cloudflare, que guarda as cópias, não têm
+nenhum papel no uso dos dados. O serviço que avisa quando o bot cai
+(healthchecks.io) recebe só um sinal periódico de que ele está vivo, sem dado
+nenhum.
 
 Isso tem uma consequência que você deve conhecer antes de usar: quem opera a
 máquina tem acesso técnico a esse banco. O bot não expõe os dados de uma
@@ -81,14 +94,17 @@ Você pode apagar dados a qualquer momento:
 Ao remover o Tino da sua conta, os dados permanecem guardados, caso você volte.
 Querendo apagá-los, faça o pedido acima.
 
+Um dado apagado ainda pode existir nas cópias de segurança criptografadas por até
+30 dias, até elas expirarem.
+
 ## Segurança
 
 O que existe: isolamento por usuário em todas as consultas, respostas privadas,
 e nenhum valor monetário ou descrição gravado em logs.
 
-O que não existe, dito com clareza: o arquivo de dados não é criptografado, e a
-infraestrutura é uma máquina pessoal, não um ambiente com garantias de
-disponibilidade ou auditoria. É um projeto pessoal gratuito, e o nível de
+O que não existe, dito com clareza: o banco na máquina não é criptografado (só
+as cópias de segurança são), e a infraestrutura é uma máquina operada por uma
+pessoa, não um ambiente com garantias de disponibilidade ou auditoria. É um projeto pessoal gratuito, e o nível de
 proteção é compatível com isso. Não confie a ele informação que você não possa
 perder ou que não gostaria que existisse fora do seu controle.
 
