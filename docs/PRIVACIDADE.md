@@ -1,6 +1,6 @@
 # Política de Privacidade — Tino
 
-**Última atualização:** 8 de novembro de 2026
+**Última atualização:** 9 de novembro de 2026
 
 O Tino é um bot de Discord de código aberto, mantido por
 [hemkdev](https://github.com/hemkdev) como projeto pessoal. Esta política
@@ -86,13 +86,13 @@ Você pode apagar dados a qualquer momento:
 - **Um lançamento** — botão *Desfazer* logo após registrar, ou `/remover <id>`
 - **Uma categoria** — `/categoria excluir` (recusa se houver lançamentos, para
   não apagar histórico sem querer)
-- **Tudo** — abra uma
-  [issue no repositório](https://github.com/hemkdev/Tino/issues)
-  informando seu identificador de usuário do Discord. A remoção é feita
-  manualmente e sem questionamento
+- **Tudo** — `/apagar-tudo`. Mostra o que vai sumir e pede confirmação; ao
+  confirmar, apaga na hora seus lançamentos, fixos, categorias, a ligação com o
+  seu usuário do Discord e a conta. Se voltar, você começa do zero
 
 Ao remover o Tino da sua conta, os dados permanecem guardados, caso você volte.
-Querendo apagá-los, faça o pedido acima.
+Querendo apagá-los, use `/apagar-tudo` antes de remover, ou adicione o Tino de
+novo e use o comando.
 
 Um dado apagado ainda pode existir nas cópias de segurança criptografadas por até
 30 dias, até elas expirarem.
@@ -122,5 +122,6 @@ completo de versões fica visível no
 
 ## Contato
 
-Dúvidas, pedidos de exclusão ou problemas:
-[issues do repositório](https://github.com/hemkdev/Tino/issues).
+Dúvidas ou problemas:
+[issues do repositório](https://github.com/hemkdev/Tino/issues). Para apagar
+seus dados, use `/apagar-tudo`: não é preciso pedir nem expor seu usuário.

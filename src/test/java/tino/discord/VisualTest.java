@@ -308,4 +308,34 @@ class VisualTest {
     void boasVindasApontamParaAjuda() {
         assertTrue(Visual.boasVindas().getFooter().getText().contains("/ajuda"));
     }
+
+    @Test
+    void avisoDeApagarMostraOQueVaiSumirESugereExportar() {
+        String texto = Visual.avisoApagar(new Tino.Inventario(312, 4, 18)).getDescription();
+
+        assertTrue(texto.contains("312"));
+        assertTrue(texto.contains("4 fixos"));
+        assertTrue(texto.contains("18"));
+        assertTrue(texto.contains("/exportar"));
+    }
+
+    @Test
+    void botoesDeApagarCarregamAContaDoDono() {
+        var botoes = Visual.botoesApagar("111").getButtons();
+
+        assertEquals("Apagar tudo", botoes.get(0).getLabel());
+        assertEquals("apagar:111:sim", botoes.get(0).getId());
+        assertEquals("Cancelar", botoes.get(1).getLabel());
+        assertEquals("apagar:111:nao", botoes.get(1).getId());
+    }
+
+    @Test
+    void resultadoDeApagarMostraOQueSumiuEOsTrintaDias() {
+        String texto = Visual.apagado(new Tino.Inventario(312, 4, 18)).getDescription();
+
+        assertTrue(texto.contains("312"));
+        assertTrue(texto.contains("4 fixos"));
+        assertTrue(texto.contains("18"));
+        assertTrue(texto.contains("30 dias"));
+    }
 }

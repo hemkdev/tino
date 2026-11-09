@@ -229,6 +229,37 @@ final class Financas {
         }
     }
 
+    static Tino.Inventario inventario(Connection c, String usuario) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("""
+                SELECT (SELECT COUNT(*) FROM lancamento WHERE usuario = ?),
+                       (SELECT COUNT(*) FROM recorrente WHERE usuario = ?),
+                       (SELECT COUNT(*) FROM categoria WHERE usuario = ?)""")) {
+            for (int i = 1; i <= 3; i++) {
+                ps.setLong(i, dono(usuario));
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return new Tino.Inventario(rs.getInt(1), rs.getInt(2), rs.getInt(3));
+            }
+        }
+    }
+
+    /** Filhos antes dos pais, por causa das chaves estrangeiras. Quem chama abre a transação. */
+    static void apagarConta(Connection c, String usuario) throws SQLException {
+        for (String sql : List.of(
+                "DELETE FROM pendente WHERE usuario = ?",
+                "DELETE FROM lancamento WHERE usuario = ?",
+                "DELETE FROM recorrente WHERE usuario = ?",
+                "DELETE FROM categoria WHERE usuario = ?",
+                "DELETE FROM identidade WHERE conta_id = ?",
+                "DELETE FROM conta WHERE id = ?")) {
+            try (PreparedStatement ps = c.prepareStatement(sql)) {
+                ps.setLong(1, dono(usuario));
+                ps.executeUpdate();
+            }
+        }
+    }
+
     /** Caminhos completos de um tipo. Passe um limite para o autocomplete (o Discord aceita 25). */
     static List<String> caminhos(Connection c, String usuario, String tipo, String filtro, int limite)
             throws SQLException {

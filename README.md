@@ -40,7 +40,7 @@ projeção do mês.
 | Anotou | Valor fora do normal | Não entendeu | De madrugada |
 |:---:|:---:|:---:|:---:|
 | <img src="docs/marca/svg/sucesso.svg" width="110"> | <img src="docs/marca/svg/alerta.svg" width="110"> | <img src="docs/marca/svg/erro.svg" width="110"> | <img src="docs/marca/svg/dormindo.svg" width="110"> |
-| "Registrado: **R$ 132,40** em Mercado." | "R$ 4.800 em Moradia? Seu normal é 1.800." **[Tá certo] [Corrigir]** | "Não achei o valor. Manda assim: `23,50 uber`." | "Hm… anotado. Vai dormir também." |
+| "Registrado: **R$ 132,40** em Mercado." | "R$ 5.000 em Mercado? Seu normal é 300." **[Tá certo] [Corrigir]** | "Não achei o valor. Manda assim: `23,50 uber`." | "Hm… anotado. Vai dormir também." |
 
 No alerta ele **só grava depois da resposta**: o `5000` digitado no lugar de `50,00` não vira
 histórico. Toda pergunta vem com botões, e quem julga o gasto é a pessoa, nunca o bot.
@@ -73,6 +73,7 @@ a resposta volta por `Tino.confirmar` ou `Tino.descartar`. Um canal novo (site, 
 | `/resumo` | Por categoria, com variação e projeção do mês |
 | `/lancamentos` · `/exportar` | Lista com os ids · CSV |
 | `/remover` · `/categoria` · `/fixo` | Apagar, organizar categorias, lançamentos fixos |
+| `/apagar-tudo` | Apaga todos os seus dados e a conta, com confirmação |
 | `/ajuda` · `/help` | Como escrever e o que cada comando faz |
 
 O bot roda numa VM, com Postgres na própria máquina e backup diário criptografado no Cloudflare

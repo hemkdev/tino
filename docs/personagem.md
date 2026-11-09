@@ -19,7 +19,7 @@ núcleo dizer o que aconteceu (`Evento`) e o canal decidir como mostrar.
 |---|---|---|---|
 | <img src="marca/svg/ocioso.svg" width="72"> | ocioso | esperando | "Me manda um gasto que eu anoto." |
 | <img src="marca/svg/sucesso.svg" width="72"> | sucesso | lançamento gravado | "Registrado: **R$ 132,40** em Mercado." |
-| <img src="marca/svg/alerta.svg" width="72"> | alerta | valor muito acima do normal da pessoa | "R$ 4.800 em Moradia? Seu normal é 1.800." [Tá certo] [Corrigir] |
+| <img src="marca/svg/alerta.svg" width="72"> | alerta | mais de 5× a média da categoria | "R$ 5.000 em Mercado? Seu normal é 300." [Tá certo] [Corrigir] |
 | <img src="marca/svg/erro.svg" width="72"> | erro | não entendeu a mensagem, ou algo falhou | "Não entendi. Me manda assim: `50 mercado` ou `+3000 salário`." |
 | <img src="marca/svg/dormindo.svg" width="72"> | dormindo | lançamento entre 0h e 6h | "Hm… anotado. Vai dormir também." |
 | <img src="marca/svg/ouvindo.svg" width="72"> | ouvindo | mensagem de voz | "Pode falar, tô ouvindo." |
