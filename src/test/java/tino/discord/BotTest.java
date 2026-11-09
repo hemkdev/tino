@@ -13,6 +13,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class BotTest {
 
     @Test
+    void mensagemDeProntoNaoMuda() {
+        // O deploy espera este texto no log para dar o bot como no ar.
+        assertEquals("bot no ar", Bot.PRONTO);
+    }
+
+    @Test
     void semUrlDoBancoSaiComMensagem() {
         IllegalStateException e = assertThrows(IllegalStateException.class,
                 () -> Bot.exigir(Map.of("DATABASE_USER", "tino"), "DATABASE_URL"));
