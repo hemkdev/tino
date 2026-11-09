@@ -28,6 +28,7 @@ import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import net.dv8tion.jda.api.requests.GatewayIntent;
+import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.utils.FileUpload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.function.Function;
 
 /** Canal Discord: traduz eventos do JDA em chamadas ao {@link Tino} e respostas em embed. */
 public class Bot extends ListenerAdapter {
@@ -212,9 +214,7 @@ public class Bot extends ListenerAdapter {
         } catch (IllegalArgumentException e) {
             evento.getHook().sendMessageEmbeds(Visual.aviso(e.getMessage())).queue();
         } catch (Exception e) {
-            String codigo = codigoDeErro();
-            LOG.error("falha em /{} [{}]", evento.getName(), codigo, e);   // sem valores nem descrições no log
-            evento.getHook().sendMessageEmbeds(Visual.erroInterno(codigo)).queue();
+            falhou("em /" + evento.getName(), e, embed -> evento.getHook().sendMessageEmbeds(embed));
         }
     }
 
@@ -268,10 +268,26 @@ public class Bot extends ListenerAdapter {
         } catch (IllegalArgumentException e) {
             evento.getMessage().replyEmbeds(Visual.aviso(e.getMessage())).queue();
         } catch (Exception e) {
-            String codigo = codigoDeErro();
-            LOG.error("falha ao interpretar mensagem [{}]", codigo, e);
-            evento.getMessage().replyEmbeds(Visual.erroInterno(codigo)).queue();
+            falhou("ao interpretar mensagem", e, embed -> evento.getMessage().replyEmbeds(embed));
         }
+    }
+
+    /**
+     * Erro inesperado. Se foi a conexão com o banco que caiu, avisa a pessoa e encerra: o
+     * Docker religa o bot com uma conexão nova. Sem valores nem descrições no log.
+     */
+    private void falhou(String onde, Exception e, Function<MessageEmbed, RestAction<?>> responder) {
+        if (Tino.quedaDeConexao(e) || !tino.conectado()) {
+            LOG.error("conexão com o banco caiu {}; encerrando para o Docker religar", onde, e);
+            try {
+                responder.apply(Visual.instavel()).complete();   // a resposta sai antes do processo
+            } finally {
+                System.exit(1);
+            }
+        }
+        String codigo = codigoDeErro();
+        LOG.error("falha {} [{}]", onde, codigo, e);
+        responder.apply(Visual.erroInterno(codigo)).queue();
     }
 
     enum Dm { LANCAMENTO, CONSULTA, NAO_ENTENDI }
@@ -360,9 +376,7 @@ public class Bot extends ListenerAdapter {
         } catch (IllegalArgumentException e) {
             evento.replyEmbeds(Visual.aviso(e.getMessage())).setEphemeral(true).queue();
         } catch (Exception e) {
-            String codigo = codigoDeErro();
-            LOG.error("falha no botão {} [{}]", partes[0], codigo, e);
-            evento.replyEmbeds(Visual.erroInterno(codigo)).setEphemeral(true).queue();
+            falhou("no botão " + partes[0], e, embed -> evento.replyEmbeds(embed).setEphemeral(true));
         }
     }
 
@@ -396,9 +410,7 @@ public class Bot extends ListenerAdapter {
         } catch (IllegalArgumentException e) {
             evento.getHook().sendMessageEmbeds(Visual.aviso(e.getMessage())).setEphemeral(true).queue();
         } catch (Exception e) {
-            String codigo = codigoDeErro();
-            LOG.error("falha ao editar [{}]", codigo, e);
-            evento.getHook().sendMessageEmbeds(Visual.erroInterno(codigo)).setEphemeral(true).queue();
+            falhou("ao editar", e, embed -> evento.getHook().sendMessageEmbeds(embed).setEphemeral(true));
         }
     }
 

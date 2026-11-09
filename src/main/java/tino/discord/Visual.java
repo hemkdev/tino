@@ -484,6 +484,11 @@ final class Visual {
                 .build();
     }
 
+    /** O banco caiu e o bot vai reiniciar: não é erro da pessoa, nem bug para reportar. */
+    static MessageEmbed instavel() {
+        return erro("Estou instável agora e vou reiniciar. Tenta de novo em um minuto.");
+    }
+
     static MessageEmbed erroInterno(String codigo) {
         return erro("Algo deu errado do meu lado. Tenta de novo daqui a pouco.\n"
                 + "Se continuar, [me avisa por aqui](%s) com o código `%s`.".formatted(linkDoAviso(codigo), codigo));

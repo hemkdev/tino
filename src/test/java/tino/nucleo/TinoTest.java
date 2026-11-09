@@ -372,6 +372,21 @@ class TinoTest {
         assertTrue(e.getMessage().contains("migrar"));
     }
 
+    @Test
+    void bootSemBancoSaiComMensagemClara() {
+        IllegalStateException e = assertThrows(IllegalStateException.class,
+                () -> Tino.abrir("jdbc:postgresql://localhost:1/tino", "tino", "tino", MEIO_DIA));
+        assertTrue(e.getMessage().contains("conectar"));
+    }
+
+    @Test
+    void quedaDeConexaoSoComSqlState08() {
+        assertTrue(Tino.quedaDeConexao(new SQLException("caiu", "08006")));
+        assertTrue(Tino.quedaDeConexao(new RuntimeException(new SQLException("caiu", "08001"))));
+        assertFalse(Tino.quedaDeConexao(new SQLException("duplicado", "23505")));
+        assertFalse(Tino.quedaDeConexao(new SQLException("sem estado")));
+    }
+
     private static Tino abrir(Clock relogio) throws SQLException {
         return Tino.abrir(BancoDeTeste.URL, BancoDeTeste.USUARIO, BancoDeTeste.SENHA, relogio);
     }

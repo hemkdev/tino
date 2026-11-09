@@ -89,11 +89,37 @@ public final class Tino {
     static Tino abrir(String url, String usuario, String senha, Clock relogio) throws SQLException {
         try {
             flyway(url, usuario, senha).validate();
-        } catch (FlywayException e) {
+            return new Tino(DriverManager.getConnection(url, usuario, senha), relogio);
+        } catch (FlywayException | SQLException e) {
+            if (quedaDeConexao(e)) {
+                throw new IllegalStateException("não consegui conectar ao banco de DATABASE_URL", e);
+            }
             throw new IllegalStateException(
                     "o esquema do banco não bate com esta versão: rode `java -jar tino.jar migrar`", e);
         }
-        return new Tino(DriverManager.getConnection(url, usuario, senha), relogio);
+    }
+
+    /**
+     * Erro de conexão (SQLState classe 08), em qualquer ponto da cadeia de causas. Os outros
+     * erros de banco são bug ou dado, e não se resolvem reiniciando.
+     */
+    public static boolean quedaDeConexao(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof SQLException sql && sql.getSQLState() != null
+                    && sql.getSQLState().startsWith("08")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** False quando a conexão já não responde, mesmo que o erro não tenha dito que era ela. */
+    public synchronized boolean conectado() {
+        try {
+            return conexao.isValid(2);
+        } catch (SQLException e) {
+            return false;
+        }
     }
 
     /** Aplica as migrations pendentes de {@code db/migration}. Rodar de novo não faz nada. */
