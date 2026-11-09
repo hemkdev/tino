@@ -25,6 +25,9 @@ services:
     # O deploy exporta IMAGE_TAG; sem ela, vale a última release.
     image: ghcr.io/hemkdev/tino:${IMAGE_TAG:-latest}
     restart: unless-stopped
+    # A VM é dividida com o racha e não tem swap. Sem teto, a JVM enxerga a RAM inteira e reserva
+    # até 25% de heap. Com 384 MB e 75% disso de heap, sobra folga sobre os ~145 MB medidos.
+    mem_limit: 384m
     depends_on:
       db:
         condition: service_healthy
@@ -34,6 +37,8 @@ services:
       DATABASE_PASSWORD: ${DB_PASSWORD}
       DISCORD_TOKEN: ${DISCORD_TOKEN:?defina DISCORD_TOKEN no .env}
       BATIMENTO_URL: ${BATIMENTO_URL:-}
+      # Heap estourado derruba a JVM, e o restart religa, em vez de seguir viva e quebrada.
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError
     logging: *logs
 
 volumes:
