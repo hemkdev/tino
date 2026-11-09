@@ -1,0 +1,106 @@
+name: Deploy
+
+on:
+  release:
+    types: [published]
+  # Volta para uma release anterior pela tag. Não restaura o banco: ver docs/operacao.md.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag da release
+        required: true
+
+# Dois deploys nunca se cruzam; o novo espera o que está rodando.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.event.release.tag_name || inputs.tag }}
+  IMAGE: ghcr.io/hemkdev/tino
+
+jobs:
+  build:
+    # O rollback reaproveita a imagem que já está no GHCR com aquela tag.
+    if: github.event_name == 'release'
+    # Runner ARM nativo: a imagem bate com a VM sem emulação.
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE }}:${{ env.TAG }},${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build
+    # Roda depois de um build pulado (rollback), mas não depois de um que falhou.
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+      CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - name: Instala o cloudflared
+        run: |
+          curl -fsSL -o cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          sudo install cloudflared /usr/local/bin/cloudflared
+      # O SSH chega à VM pelo túnel da Cloudflare, autenticado por um service token do Access;
+      # a VM não tem porta aberta. A host key é fixada, nunca aceita às cegas.
+      - name: Configura o SSH
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<CONFIG
+          Host vm
+            HostName $SSH_HOST
+            User deploy
+            ProxyCommand cloudflared access ssh --hostname %h --service-token-id \$CF_ACCESS_CLIENT_ID --service-token-secret \$CF_ACCESS_CLIENT_SECRET
+          CONFIG
+      - name: Deploy
+        run: |
+          scp deploy/docker-compose.yml vm:tino/docker-compose.yml
+          scp deploy/backup.sh vm:tino/backup.sh
+          # Backup e migração antes de trocar o container: se um falhar, o bot antigo segue no ar.
+          # $TAG expande aqui, de propósito, antes de o comando chegar à VM.
+          # shellcheck disable=SC2029
+          ssh vm "cd tino && chmod +x backup.sh && export IMAGE_TAG=$TAG \
+            && docker compose pull \
+            && docker compose up -d --wait db \
+            && ./backup.sh deploy $TAG \
+            && docker compose run --rm bot migrar \
+            && date -u +%Y-%m-%dT%H:%M:%SZ > .inicio \
+            && docker compose up -d --remove-orphans"
+      # Portão: o bot novo precisa escrever "bot no ar" (Bot.PRONTO) em até 90 s. Os logs do bot
+      # ficam na VM: o log do Actions é público.
+      - name: Confere se subiu
+        run: |
+          ssh vm 'cd tino && timeout 90 sh -c \
+            "until docker compose logs --since \$(cat .inicio) bot | grep -q \"bot no ar\"; do sleep 3; done"' \
+            || { echo "o bot não escreveu 'bot no ar' em 90 s: veja docker compose logs bot na VM"; exit 1; }
+      - name: Limpa imagens antigas
+        run: ssh vm 'docker image prune -af'
