@@ -46,6 +46,10 @@ age -d -i tino-backup.key ARQUIVO.sql.gz.age | gunzip \
 ssh vm 'cd tino && IMAGE_TAG=vX.Y.Z docker compose up -d bot'
 ```
 
+Testado em 2026-11-09: um backup diário baixado do R2, aberto com a chave e restaurado num
+Postgres vazio trouxe a conta e os lançamentos intactos. Vale repetir de tempos em tempos: backup
+que nunca foi restaurado é só uma promessa.
+
 Para testar um backup sem tocar na produção, restaure no Postgres local do `docker-compose.yml`
 da raiz, no lugar do passo 2: `docker compose exec -T db psql -U tino -d postgres -c "CREATE
 DATABASE restaurado"` e o passo 3 com `-d restaurado`, sem o `ssh`.
