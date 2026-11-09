@@ -73,6 +73,7 @@ a resposta volta por `Tino.confirmar` ou `Tino.descartar`. Um canal novo (site, 
 | `/resumo` | Por categoria, com variação e projeção do mês |
 | `/lancamentos` · `/exportar` | Lista com os ids · CSV |
 | `/remover` · `/categoria` · `/fixo` | Apagar, organizar categorias, lançamentos fixos |
+| `/apagar-tudo` | Apaga todos os seus dados e a conta, com confirmação |
 | `/ajuda` · `/help` | Como escrever e o que cada comando faz |
 
 O bot roda numa VM, com Postgres na própria máquina e backup diário criptografado no Cloudflare
