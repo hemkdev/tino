@@ -459,6 +459,20 @@ final class Visual {
                 .build();
     }
 
+    // -------------------------------------------------------- apagar tudo
+
+    static MessageEmbed avisoApagar(Tino.Inventario i) {
+        throw new UnsupportedOperationException("TODO: apagar-tudo");
+    }
+
+    static ActionRow botoesApagar(String usuario) {
+        throw new UnsupportedOperationException("TODO: apagar-tudo");
+    }
+
+    static MessageEmbed apagado(Tino.Inventario i) {
+        throw new UnsupportedOperationException("TODO: apagar-tudo");
+    }
+
     // ------------------------------------------------------------- avulsos
 
     static MessageEmbed ok(String mensagem) {

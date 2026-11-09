@@ -73,6 +73,9 @@ public final class Tino {
     public record Categorias(List<String> gastos, int raizGasto, int subGasto,
                       List<String> ganhos, int raizGanho, int subGanho) {}
 
+    /** O que uma conta tem: o aviso do apagar-tudo mostra, e o resultado diz o que sumiu. */
+    public record Inventario(int lancamentos, int fixos, int categorias) {}
+
     Tino(Connection conexao, Clock relogio) {
         this.conexao = conexao;
         this.relogio = relogio;
@@ -424,6 +427,16 @@ public final class Tino {
     public synchronized void excluirCategoria(String usuario, String caminho, Tipo tipo)
             throws SQLException {
         Financas.excluir(conexao, usuario, caminho, tipo.codigo());
+    }
+
+    // ------------------------------------------------------------------ conta
+
+    public synchronized Inventario inventario(String usuario) throws SQLException {
+        throw new UnsupportedOperationException("TODO: apagar-tudo");
+    }
+
+    public synchronized Inventario apagarTudo(String usuario) throws SQLException {
+        throw new UnsupportedOperationException("TODO: apagar-tudo");
     }
 
     // ------------------------------------------------------------------ fixos

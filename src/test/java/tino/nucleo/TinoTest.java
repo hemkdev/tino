@@ -580,4 +580,83 @@ class TinoTest {
         assertEquals(90, Tino.DIAS_DO_NORMAL);
         assertEquals(24, Tino.HORAS_PARA_RESPONDER);
     }
+
+    // ------------------------------------------------------------ apagar tudo
+
+    private int linhas(String tabela, String coluna, String conta) throws SQLException {
+        try (var ps = conexao.prepareStatement(
+                "SELECT COUNT(*) FROM " + tabela + " WHERE " + coluna + " = ?")) {
+            ps.setLong(1, Long.parseLong(conta));
+            try (var rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getInt(1);
+            }
+        }
+    }
+
+    private int linhasDaConta(String conta) throws SQLException {
+        return linhas("pendente", "usuario", conta) + linhas("lancamento", "usuario", conta)
+                + linhas("recorrente", "usuario", conta) + linhas("categoria", "usuario", conta)
+                + linhas("identidade", "conta_id", conta) + linhas("conta", "id", conta);
+    }
+
+    /** Uma conta com de tudo: identidade, subcategoria, lançamentos, fixo e pendente. */
+    private String contaCheia(String externo) throws SQLException {
+        String conta = tino.conta("discord", externo);
+        tino.preparar(conta);
+        tino.criarCategoria(conta, "Alimentação > Mercado", Tipo.GASTO);
+        for (int i = 0; i < 3; i++) {
+            tino.registrar(conta, -5_000, "Alimentação > Mercado", null, HOJE);
+        }
+        tino.adicionarFixo(conta, -120_000, "Moradia", "aluguel");
+        assertInstanceOf(Evento.ForaDoNormal.class,
+                tino.lancar(conta, new Pedido(-500_000, "Alimentação > Mercado", null, HOJE)));
+        return conta;
+    }
+
+    @Test
+    void apagarTudoNaoDeixaNadaDaConta() throws SQLException {
+        String conta = contaCheia("9001");
+
+        tino.apagarTudo(conta);
+
+        assertEquals(0, linhasDaConta(conta));
+    }
+
+    @Test
+    void apagarTudoNaoTocaEmOutraConta() throws SQLException {
+        String outra = contaCheia("9002");
+        String conta = contaCheia("9001");
+        int antes = linhasDaConta(outra);
+
+        tino.apagarTudo(conta);
+
+        assertEquals(antes, linhasDaConta(outra));
+    }
+
+    @Test
+    void quemVoltaDepoisDeApagarChegaDoZero() throws SQLException {
+        String conta = contaCheia("9001");
+
+        tino.apagarTudo(conta);
+        String nova = tino.conta("discord", "9001");
+
+        assertFalse(nova.equals(conta));
+        assertTrue(tino.preparar(nova));
+    }
+
+    @Test
+    void inventarioContaOQueApagarTudoApaga() throws SQLException {
+        tino.criarCategoria(EU, "Alimentação > Mercado", Tipo.GASTO);
+        tino.registrar(EU, -5_000, "Alimentação > Mercado", null, HOJE);
+        tino.registrar(EU, 300_000, "Salário", null, HOJE);
+        tino.adicionarFixo(EU, -120_000, "Moradia", "aluguel");
+        Tino.Categorias c = tino.categorias(EU);
+        int categorias = c.raizGasto() + c.subGasto() + c.raizGanho() + c.subGanho();
+
+        Tino.Inventario esperado = new Tino.Inventario(2, 1, categorias);
+
+        assertEquals(esperado, tino.inventario(EU));
+        assertEquals(esperado, tino.apagarTudo(EU));
+    }
 }
