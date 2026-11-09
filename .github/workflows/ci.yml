@@ -20,6 +20,21 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    # O mesmo Postgres e a mesma porta do docker-compose.yml: os testes não sabem onde rodam.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: tino
+          POSTGRES_USER: tino
+          POSTGRES_PASSWORD: tino
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U tino -d tino"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
