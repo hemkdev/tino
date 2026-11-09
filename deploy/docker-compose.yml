@@ -1,0 +1,40 @@
+# Produção, na VM, em ~/tino. O deploy copia este arquivo para lá; o .env da VM, que nunca vai
+# para o GitHub, traz DB_PASSWORD, DISCORD_TOKEN, BATIMENTO_URL e as variáveis do backup.
+# Nenhuma porta exposta: o bot só faz conexão de saída, e o banco fica na rede do compose.
+services:
+  db:
+    image: docker.io/library/postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tino
+      POSTGRES_USER: tino
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD no .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tino -d tino"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    logging: &logs
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  bot:
+    # O deploy exporta IMAGE_TAG; sem ela, vale a última release.
+    image: ghcr.io/hemkdev/tino:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: jdbc:postgresql://db:5432/tino
+      DATABASE_USER: tino
+      DATABASE_PASSWORD: ${DB_PASSWORD}
+      DISCORD_TOKEN: ${DISCORD_TOKEN:?defina DISCORD_TOKEN no .env}
+      BATIMENTO_URL: ${BATIMENTO_URL:-}
+    logging: *logs
+
+volumes:
+  pgdata:
