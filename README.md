@@ -75,6 +75,10 @@ a resposta volta por `Tino.confirmar` ou `Tino.descartar`. Um canal novo (site, 
 | `/remover` · `/categoria` · `/fixo` | Apagar, organizar categorias, lançamentos fixos |
 | `/ajuda` · `/help` | Como escrever e o que cada comando faz |
 
+O bot roda numa VM, com Postgres na própria máquina e backup diário criptografado no Cloudflare
+R2; o deploy sai a cada release. Como publicar, voltar uma versão e restaurar está em
+[operacao.md](docs/operacao.md).
+
 Cada pessoa vê só os próprios dados. O que é guardado e como apagar está em
 [PRIVACIDADE.md](docs/PRIVACIDADE.md); as regras de uso, em [TERMOS.md](docs/TERMOS.md).
 
@@ -128,17 +132,18 @@ src/test/java/tino/   testes do núcleo e do canal, contra o Postgres do docker-
 docs/
 ├── decisoes.md       o que foi escolhido, o que foi recusado e por quê
 ├── banco.md          esquema e regras que não são negociáveis
+├── operacao.md       deploy, rollback, backup e restauração
 ├── personagem.md     estados, falas e os próximos traços
 ├── PRIVACIDADE.md    o que é guardado e como apagar
 ├── TERMOS.md         regras de uso do bot
 └── marca/            o Tino em SVG, GIF e PNG
-.github/workflows/    CI: lint (javac -Xlint), testes e build da imagem arm64
+deploy/              compose e backup da VM
+.github/workflows/    CI (lint, testes, build arm64) e deploy por release
 ```
 
 ## Limitações
 
 - **Só Discord por enquanto.** O núcleo já é independente, mas site, Telegram e MCP ainda não existem.
-- **Ainda não roda numa VM.** O bot só responde enquanto o processo estiver de pé.
 - **Um processo, uma conexão e um lock.** O bot é público, mas pequeno: se um dia houver
   concorrência de verdade, a troca é por um pool, sem mexer na API.
 
@@ -150,7 +155,7 @@ docs/
 - [x] Postgres com migrations versionadas, testado contra o banco de verdade
 - [ ] Traços do personagem: planta, ausência, impulso, vigiar categoria
 - [ ] Site e conector MCP sobre a mesma conta
-- [ ] No ar numa VM, com deploy por release, backup e alerta de queda
+- [x] No ar numa VM, com deploy por release, backup e alerta de queda
 
 ## Créditos
 
