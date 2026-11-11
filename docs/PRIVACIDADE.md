@@ -1,6 +1,6 @@
 # Política de Privacidade — Tino
 
-**Última atualização:** 9 de novembro de 2026
+**Última atualização:** 11 de novembro de 2026
 
 O Tino é um bot de Discord de código aberto, mantido por
 [hemkdev](https://github.com/hemkdev) como projeto pessoal. Esta política
@@ -18,6 +18,7 @@ Quando você registra um lançamento, ficam guardados:
 - **Descrição**, quando você escreve uma
 - **Suas categorias**, incluindo as que você criar ou renomear
 - **Lançamentos fixos** que você cadastrar
+- **Quando** sua conta foi criada e quando cada lançamento foi registrado
 - **Lançamentos à espera de confirmação** — quando um valor foge muito do seu
   normal, o pedido fica guardado até você responder [Tá certo] ou [Corrigir],
   por no máximo 24 horas, e depois é apagado
@@ -52,14 +53,27 @@ nenhum.
 
 Isso tem uma consequência que você deve conhecer antes de usar: quem opera a
 máquina tem acesso técnico a esse banco. O bot não expõe os dados de uma
-pessoa para outra, e não há intenção nem prática de leitura desse conteúdo — mas
-seria desonesto afirmar que isso é tecnicamente impossível. Se essa condição não
+pessoa para outra, e o mantenedor só olha o que a seção abaixo descreve — mas
+seria desonesto afirmar que ler o resto é tecnicamente impossível. Se essa condição não
 te agrada, você pode rodar sua própria instância: o código está inteiro no
 repositório e as instruções estão no README.
 
+## O que o mantenedor vê
+
+Para saber se o Tino está sendo usado e como, o mantenedor consulta, por conta:
+
+- seu nome de usuário do Discord, perguntado ao Discord na hora da consulta e
+  não guardado;
+- quantos lançamentos, fixos e categorias você tem;
+- quando sua conta foi criada e quando foi seu último lançamento.
+
+Valores, descrições e nomes de categoria ficam fora dessa consulta: o
+mantenedor não olha o seu dinheiro. O que ela lê está no
+[script do repositório](../deploy/uso.sh).
+
 ## Quem consegue ver
 
-Somente você. Toda consulta do bot é filtrada pela sua conta,
+Seus lançamentos, somente você. Toda consulta do bot é filtrada pela sua conta,
 e existem testes automatizados que verificam esse isolamento.
 
 Em conversa privada, as respostas ficam no seu histórico do Discord. Em
@@ -75,7 +89,7 @@ controle deste projeto.
 
 Seus dados não são vendidos, cedidos, compartilhados nem usados para publicidade,
 treinamento de modelos ou qualquer finalidade além de responder aos seus próprios
-comandos.
+comandos e de mostrar ao mantenedor o uso descrito acima.
 
 ## Por quanto tempo
 

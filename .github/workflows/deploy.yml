@@ -84,11 +84,11 @@ jobs:
       - name: Deploy
         run: |
           scp deploy/docker-compose.yml vm:tino/docker-compose.yml
-          scp deploy/backup.sh vm:tino/backup.sh
+          scp deploy/backup.sh deploy/uso.sh vm:tino/
           # Backup e migração antes de trocar o container: se um falhar, o bot antigo segue no ar.
           # $TAG expande aqui, de propósito, antes de o comando chegar à VM.
           # shellcheck disable=SC2029
-          ssh vm "cd tino && chmod +x backup.sh && export IMAGE_TAG=$TAG \
+          ssh vm "cd tino && chmod +x backup.sh uso.sh && export IMAGE_TAG=$TAG \
             && docker compose pull \
             && docker compose up -d --wait db \
             && ./backup.sh deploy $TAG \
