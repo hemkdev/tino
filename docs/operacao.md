@@ -102,4 +102,5 @@ não tem segredo, e assim a VM baixa sem login.
 docker compose logs -f bot        # logs, sem valores nem tokens
 docker compose ps                 # estado e saúde
 ./backup.sh diario                # backup manual
+./uso.sh                          # quem usa e quanto, sem valores (PRIVACIDADE.md)
 ```

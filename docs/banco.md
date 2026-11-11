@@ -19,6 +19,7 @@ erDiagram
 
     conta {
         bigint id PK
+        timestamptz criado_em
     }
     identidade {
         text provedor PK
@@ -39,6 +40,7 @@ erDiagram
         bigint categoria_id FK
         text descricao
         date data
+        timestamptz criado_em
     }
     recorrente {
         bigint id PK
@@ -59,6 +61,9 @@ erDiagram
 ```
 
 Um índice só: `idx_consulta ON lancamento (usuario, data)`, que serve a todo resumo e listagem.
+
+`lancamento.data` é o dia do gasto; `criado_em`, em `conta` e `lancamento`, é quando a linha
+nasceu, preenchido pelo `DEFAULT now()`. Só o `deploy/uso.sh` lê `criado_em`.
 
 `pendente` guarda o lançamento fora do normal que espera a pessoa responder [Tá certo] ou
 [Corrigir]. A chave é aleatória e vai no botão; só a dona confirma, uma vez. Expira em 24 h, e
