@@ -5,10 +5,10 @@ JDBC), Flyway, JUnit 5 e Maven. Hoje o canal é o Discord; site, Telegram e MCP 
 núcleo.
 
 ```bash
-docker compose up -d                              # Postgres 17 em localhost:5433
-mvn verify                                        # testes, no banco tino_teste
-mvn package && java -jar target/tino.jar migrar   # precisa de DATABASE_URL, _USER e _PASSWORD
-java -jar target/tino.jar                         # e também de DISCORD_TOKEN
+docker compose up -d                                 # Postgres 17 em localhost:5433
+./mvnw verify                                        # testes, no banco tino_teste
+./mvnw package && java -jar target/tino.jar migrar   # precisa de DATABASE_URL, _USER e _PASSWORD
+java -jar target/tino.jar                            # e também de DISCORD_TOKEN
 ```
 
 Esquema novo é uma migration nova em `src/main/resources/db/migration/` (`V2__...sql`); nunca

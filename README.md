@@ -108,12 +108,12 @@ As regras completas e o porquê de cada uma estão em [banco.md](docs/banco.md) 
 
 ## Rodar
 
-Precisa de Java 25, Maven e Docker (ou Podman) para o Postgres.
+Precisa de Java 25 e Docker (ou Podman) para o Postgres; o Maven vem pelo `./mvnw`.
 
 ```bash
 docker compose up -d                  # Postgres 17 em localhost:5433
-mvn verify                            # testes, num banco tino_teste à parte
-mvn package
+./mvnw verify                         # testes, num banco tino_teste à parte
+./mvnw package
 
 export DATABASE_URL=jdbc:postgresql://localhost:5433/tino DATABASE_USER=tino DATABASE_PASSWORD=tino
 java -jar target/tino.jar migrar      # aplica as migrations e sai
