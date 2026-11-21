@@ -37,6 +37,12 @@ do git (plano, brief, specs).
   critério de aceite vira um teste que falha antes da implementação; bug também começa pelo teste.
 - Tudo em PT-BR: código, testes, commits e docs.
 
+## Como a IA trabalha aqui
+
+- Projeto ai-first: a IA escreve o código; o dono acompanha no nível de conceito (arquitetura,
+  responsabilidades, fluxos de entrada e saída) e revisa cada etapa. Sintaxe Java só é explicada
+  quando carrega um conceito.
+
 ## Em aberto
 
 - **Contrato do MCP:** campos estruturados ou texto livre pela `Entrada`.
